@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package block_service;
+
+option go_package = "./block_service";
+
+service BlockService {
+  // To obtain object chunk according to hash, can set whether to pull from the Master node.
+  rpc GetChunk(GetChunkReq) returns (GetChunkResp) {}
+  // Upload the object chunk to the Block service group.
+  rpc UploadChunk(UploadChunkReq) returns (UploadChunkResp) {}
+}
+
+message GetChunkReq {
+  string hash = 1;
+  bool from_master = 2;
+}
+
+message GetChunkResp {
+  string hash = 1;
+  bytes binary = 2;
+}
+
+message UploadChunkReq {
+  string hash = 1;
+  bytes binary = 2;
+}
+
+message UploadChunkResp {
+  // TODO: Set callbacks for the propose behavior.
+}

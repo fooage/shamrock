@@ -27,23 +27,26 @@ func generateHandler(logger *zap.Logger, kvStorage kvstore.KVStorage, raftCluste
 	}
 }
 
-func (h *handler) confChangeAddNode(c *gin.Context) {
+func (h *handler) ConfChangeAddNode(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 0, 64)
 	if err != nil || id == 0 {
+		h.logger.Error("parse url param error", zap.Error(err), zap.Uint64("id", id))
 		c.JSON(http.StatusBadRequest, nil)
 		return
 	}
-	var requestBody struct {
+	var reqBody struct {
 		NodeUrl string `json:"node_url"`
 	}
-	err = c.BindJSON(&requestBody)
+	err = c.BindJSON(&reqBody)
 	if err != nil {
+		h.logger.Error("bind json param error", zap.Error(err))
 		c.JSON(http.StatusBadRequest, nil)
 		return
 	}
 	// check url format avoid raft node crash
-	_, err = url.ParseRequestURI(requestBody.NodeUrl)
+	_, err = url.ParseRequestURI(reqBody.NodeUrl)
 	if err != nil {
+		h.logger.Error("new node url can not parse", zap.Error(err))
 		c.JSON(http.StatusBadRequest, nil)
 		return
 	}
@@ -51,15 +54,16 @@ func (h *handler) confChangeAddNode(c *gin.Context) {
 	h.raftCluster.ConfChange() <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
 		NodeID:  id,
-		Context: []byte(requestBody.NodeUrl),
+		Context: []byte(reqBody.NodeUrl),
 	}
 	// As above, optimistic that raft will apply the config change.
 	c.JSON(http.StatusAccepted, nil)
 }
 
-func (h *handler) confChangeRemoveNode(c *gin.Context) {
+func (h *handler) ConfChangeRemoveNode(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 0, 64)
 	if err != nil || id == 0 {
+		h.logger.Error("parse url param error", zap.Error(err), zap.Uint64("id", id))
 		c.JSON(http.StatusBadRequest, nil)
 		return
 	}
@@ -71,7 +75,7 @@ func (h *handler) confChangeRemoveNode(c *gin.Context) {
 	c.JSON(http.StatusAccepted, nil)
 }
 
-func (h *handler) queryObjectMeta(c *gin.Context) {
+func (h *handler) QueryObjectMeta(c *gin.Context) {
 	name := c.Param("name")
 	key := generateObjectMetaKey(name)
 
@@ -79,6 +83,7 @@ func (h *handler) queryObjectMeta(c *gin.Context) {
 		var data ObjectMeta
 		err := json.Unmarshal([]byte(value), &data)
 		if err != nil {
+			h.logger.Error("object meta json unmarshal failed", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, nil)
 			return
 		}
@@ -88,7 +93,7 @@ func (h *handler) queryObjectMeta(c *gin.Context) {
 	}
 }
 
-func (h *handler) updateObjectMeta(c *gin.Context) {
+func (h *handler) UpdateObjectMeta(c *gin.Context) {
 	name := c.Param("name")
 	key := generateObjectMetaKey(name)
 	data := ObjectMeta{}
@@ -100,37 +105,45 @@ func (h *handler) updateObjectMeta(c *gin.Context) {
 
 	value, err := json.Marshal(data)
 	if err != nil {
+		h.logger.Error("object meta json marshal failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}
 	if err = h.kvStorage.Propose(key, string(value)); err != nil {
+		h.logger.Error("propose raft layer error", zap.Error(err), zap.String("key", key))
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}
 
-	// Not waiting for ack from raft. Value is not yet committed so a
+	// Not waiting for ack from raft. Binary is not yet committed so a
 	// subsequent GET on the key may return old value.
 	c.JSON(http.StatusAccepted, nil)
 }
 
-func (h *handler) queryChunkMetas(c *gin.Context) {
-	var requestBody struct {
+func (h *handler) QueryChunkMetas(c *gin.Context) {
+	var reqBody struct {
 		HashList  []string `json:"hash_list"`
 		BatchSize int      `json:"batch_size"`
 	}
-	err := c.BindJSON(&requestBody)
-	if err != nil || requestBody.BatchSize > 100 || requestBody.BatchSize != len(requestBody.HashList) {
+	err := c.BindJSON(&reqBody)
+	if err != nil || reqBody.BatchSize > 100 || reqBody.BatchSize != len(reqBody.HashList) {
+		h.logger.Error("query chunk metas param error",
+			zap.Error(err),
+			zap.Strings("hash_list", reqBody.HashList),
+			zap.Int("batch_size", reqBody.BatchSize),
+		)
 		c.JSON(http.StatusBadRequest, nil)
 		return
 	}
 
-	result := make([]ChunkMeta, 0, requestBody.BatchSize)
-	for _, hash := range requestBody.HashList {
+	result := make([]ChunkMeta, 0, reqBody.BatchSize)
+	for _, hash := range reqBody.HashList {
 		key := generateChunkMetaKey(hash)
 		if value, ok := h.kvStorage.Lookup(key); ok {
 			var data ChunkMeta
 			err := json.Unmarshal([]byte(value), &data)
 			if err != nil {
+				h.logger.Error("chunk meta json unmarshal failed", zap.Error(err))
 				c.JSON(http.StatusInternalServerError, nil)
 				return
 			}
@@ -139,14 +152,14 @@ func (h *handler) queryChunkMetas(c *gin.Context) {
 	}
 
 	// This query may not return all chunk metas needed, but think it is acceptable.
-	if len(result) < requestBody.BatchSize {
+	if len(result) < reqBody.BatchSize {
 		c.JSON(http.StatusNotFound, result)
 	} else {
 		c.JSON(http.StatusOK, result)
 	}
 }
 
-func (h *handler) queryChunkMeta(c *gin.Context) {
+func (h *handler) QueryChunkMeta(c *gin.Context) {
 	hash := c.Param("hash")
 	key := generateChunkMetaKey(hash)
 
@@ -154,6 +167,7 @@ func (h *handler) queryChunkMeta(c *gin.Context) {
 		var data ChunkMeta
 		err := json.Unmarshal([]byte(value), &data)
 		if err != nil {
+			h.logger.Error("chunk meta json unmarshal failed", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, nil)
 			return
 		}
@@ -163,27 +177,30 @@ func (h *handler) queryChunkMeta(c *gin.Context) {
 	}
 }
 
-func (h *handler) updateChunkMeta(c *gin.Context) {
+func (h *handler) UpdateChunkMeta(c *gin.Context) {
 	name := c.Param("hash")
 	key := generateChunkMetaKey(name)
 	data := ChunkMeta{}
 	err := c.BindJSON(&data)
 	if err != nil {
+		h.logger.Error("bind json param error", zap.Error(err))
 		c.JSON(http.StatusBadRequest, nil)
 		return
 	}
 
 	value, err := json.Marshal(data)
 	if err != nil {
+		h.logger.Error("chunk meta json marshal failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}
 	if err = h.kvStorage.Propose(key, string(value)); err != nil {
+		h.logger.Error("propose raft layer error", zap.Error(err), zap.String("key", key))
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}
 
-	// Not waiting for ack from raft. Value is not yet committed so a
+	// Not waiting for ack from raft. Binary is not yet committed so a
 	// subsequent GET on the key may return old value.
 	c.JSON(http.StatusAccepted, nil)
 }

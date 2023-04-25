@@ -5,20 +5,21 @@
 package http_api
 
 import (
-	"fmt"
+	"net/url"
 
 	"github.com/fooage/shamrock/core/kvstore"
 	"github.com/fooage/shamrock/core/raft"
+	"github.com/fooage/shamrock/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
-func ServeHttp(logger *zap.Logger, port int, kvStorage kvstore.KVStorage, raftCluster raft.Cluster) {
+func ServeHttp(logger *zap.Logger, local url.URL, kvStorage kvstore.KVStorage, raftCluster raft.Cluster) {
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
 	handler := generateHandler(logger, kvStorage, raftCluster)
 	defer func() {
-		if err := router.Run(fmt.Sprintf(":%d", port)); err != nil {
+		if err := router.Run(utils.AddressOffsetHTTP(local)); err != nil {
 			logger.Panic("http interface router run error", zap.Error(err))
 		}
 	}()
@@ -26,22 +27,22 @@ func ServeHttp(logger *zap.Logger, port int, kvStorage kvstore.KVStorage, raftCl
 	// related to cluster configuration changes
 	cluster := router.Group("/cluster/nodes")
 	{
-		cluster.POST("/:id", handler.confChangeAddNode)
-		cluster.DELETE("/:id", handler.confChangeRemoveNode)
+		cluster.POST("/:id", handler.ConfChangeAddNode)
+		cluster.DELETE("/:id", handler.ConfChangeRemoveNode)
 	}
 
 	// object meta info storage-related operational apis
 	object := router.Group("/meta/objects")
 	{
-		object.GET("/:name", handler.queryObjectMeta)
-		object.PUT("/:name", handler.updateObjectMeta)
+		object.GET("/:name", handler.QueryObjectMeta)
+		object.PUT("/:name", handler.UpdateObjectMeta)
 	}
 
 	// chunk meta info related apis for route client request
 	chunk := router.Group("/meta/chunks")
 	{
-		chunk.GET("/", handler.queryChunkMetas)
-		chunk.GET("/:hash", handler.queryChunkMeta)
-		chunk.PUT("/:hash", handler.updateChunkMeta)
+		chunk.GET("/", handler.QueryChunkMetas)
+		chunk.GET("/:hash", handler.QueryChunkMeta)
+		chunk.PUT("/:hash", handler.UpdateChunkMeta)
 	}
 }

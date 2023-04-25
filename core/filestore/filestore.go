@@ -2,18 +2,23 @@ package filestore
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
+	"net/url"
 	"os"
 	"sync"
 
 	"github.com/fooage/shamrock/core/raft"
+	"github.com/fooage/shamrock/proto/proto_gen/block_service"
 	"github.com/fooage/shamrock/utils"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 type FileStorage interface {
@@ -31,9 +36,17 @@ type filestoreServer struct {
 	snapshot  *snap.Snapshotter
 	mutex     sync.RWMutex
 	cluster   raft.Cluster
+	storePath string
 
-	storePath string // file store path prefix
-	logger    *zap.Logger
+	logger *zap.Logger
+}
+
+func NewFileStoreServer(logger *zap.Logger) FileStorage {
+	return &filestoreServer{
+		filestore: make(map[string]*os.File),
+		storePath: "",
+		logger:    logger,
+	}
 }
 
 func (f *filestoreServer) Lookup(key string) ([]byte, bool) {
@@ -45,6 +58,12 @@ func (f *filestoreServer) Lookup(key string) ([]byte, bool) {
 	if !ok {
 		return nil, ok
 	}
+	file, err := os.OpenFile(file.Name(), os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		f.logger.Error("open file error", zap.Error(err))
+		return nil, false
+	}
+	defer file.Close()
 	data, err := f.bufferReadFile(file)
 	if err != nil {
 		f.logger.Error("buffer read file failed", zap.Error(err))
@@ -56,35 +75,14 @@ func (f *filestoreServer) Lookup(key string) ([]byte, bool) {
 // The Chunk structure is for better serialization of data between the file store
 // layer and the raft layer. Encode and decode is according to its fields.
 type Chunk struct {
-	Key   string
-	Value []byte
+	Hash   string
+	Binary []byte
 }
 
 func (f *filestoreServer) Propose(key string, value []byte) (err error) {
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
-
-	// TODO: Check if there are concurrency issues here.
-	file, ok := f.filestore[key]
-	if !ok {
-		file, err = os.Create(fmt.Sprintf("%s/%s", f.storePath, key))
-		if err != nil {
-			f.logger.Error("system create file error", zap.Error(err))
-			return err
-		}
-		f.filestore[key] = file
-	}
-	err = f.bufferWriteFile(file, value)
-	if err != nil {
-		f.logger.Error("write file failed", zap.String("file", file.Name()), zap.Error(err))
-		return err
-	}
-
-	// After writing to the file, the binary data of its file is synchronized
-	// to other nodes through Raft.
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
-	err = encoder.Encode(Chunk{Key: key, Value: value})
+	err = encoder.Encode(Chunk{Hash: key, Binary: value})
 	if err != nil {
 		f.logger.Error("can not encode file as key-value", zap.Error(err))
 		return err
@@ -100,6 +98,14 @@ func (f *filestoreServer) SnapshotFetch() ([]byte, error) {
 }
 
 func (f *filestoreServer) Connect(cluster raft.Cluster) {
+	f.storePath = fmt.Sprintf("store-%s-%s", cluster.Group(), cluster.Self())
+	if !utils.PathExist(f.storePath) {
+		if err := os.Mkdir(f.storePath, 0750); err != nil {
+			f.logger.Panic("create store folder error", zap.String("path", f.storePath), zap.Error(err))
+		}
+	}
+
+	// Restore data from the Raft snapshot of the consistency layer.
 	f.cluster = cluster
 	f.snapshot = <-f.cluster.Snapshot()
 	snapshot, err := f.loadFromSnapshot()
@@ -109,25 +115,12 @@ func (f *filestoreServer) Connect(cluster raft.Cluster) {
 	if snapshot != nil {
 		err = f.recoverFromSnapshot(snapshot)
 		if err != nil {
-			f.logger.Panic("recover KV from snapshot failed", zap.Error(err))
+			f.logger.Panic("recover Map from snapshot failed", zap.Error(err))
 		}
 	}
 
 	// Read commits from raft into filestore until error.
 	go f.readCommits()
-}
-
-func NewFileStoreServer(logger *zap.Logger, storePath string) FileStorage {
-	if !utils.PathExist(storePath) {
-		if err := os.Mkdir(storePath, 0750); err != nil {
-			logger.Panic("create store folder error", zap.String("path", storePath), zap.Error(err))
-		}
-	}
-	return &filestoreServer{
-		filestore: make(map[string]*os.File),
-		storePath: storePath,
-		logger:    logger,
-	}
 }
 
 // readCommits is a main loop to continuously read committed data from raft layer
@@ -154,25 +147,27 @@ func (f *filestoreServer) readCommits() {
 			}
 
 			for _, dataStr := range commit.Data {
-				data := Chunk{Key: "", Value: nil}
+				data := Chunk{Hash: "", Binary: nil}
 				decoder := gob.NewDecoder(bytes.NewBufferString(dataStr))
 				err := decoder.Decode(&data)
 				if err != nil {
 					f.logger.Error("can not decode message as key-value", zap.Error(err))
+					continue
 				}
 				f.mutex.Lock()
-				file, ok := f.filestore[data.Key]
+				file, ok := f.filestore[data.Hash]
 				if !ok {
-					file, err = os.Create(fmt.Sprintf("%s/%s", f.storePath, data.Key))
+					file, err = os.OpenFile(fmt.Sprintf("%s/%s", f.storePath, data.Hash), os.O_CREATE|os.O_TRUNC, os.ModePerm)
 					if err != nil {
-						f.logger.Error("synchronized file create error", zap.String("file", data.Key), zap.Error(err))
+						f.logger.Error("synchronized file create error", zap.String("file", data.Hash), zap.Error(err))
 					}
 				}
-				if err := f.bufferWriteFile(file, data.Value); err != nil {
+				if err := f.bufferWriteFile(file, data.Binary); err != nil {
 					f.logger.Error("data write on disk failed", zap.String("file", file.Name()), zap.Error(err))
 					continue
 				}
-				f.filestore[data.Key] = file
+				f.filestore[data.Hash] = file
+				file.Close()
 				f.mutex.Unlock()
 			}
 
@@ -201,16 +196,57 @@ func (f *filestoreServer) recoverFromSnapshot(snapshot *raftpb.Snapshot) error {
 	)
 	var filestore map[string]*os.File
 	if err := json.Unmarshal(snapshot.Data, &filestore); err != nil {
-		return err
+		f.logger.Panic("snapshot data can not be unmarshal", zap.Error(err))
 	}
 
-	f.mutex.Lock()
-	if _, ok := f.cluster.Leader(); ok {
-		// TODO: Complete logic which pull chunks from Leader node.
+	// Since the snapshot only has a list of chunks, the data must be pulled
+	// from the Leader node.
+	if leader, ok := f.cluster.Leader(); ok {
+		target := leader[rand.Intn(len(leader))]
+		err := f.synchronizedLeader(target, filestore)
+		if err != nil {
+			f.logger.Error("sync from leader failed", zap.Error(err))
+			return err
+		}
+		return nil
 	} else {
 		return errors.New("cluster has no leader, can not sync")
 	}
-	f.filestore = filestore
-	f.mutex.Unlock()
+}
+
+func (f *filestoreServer) synchronizedLeader(leader url.URL, filestore map[string]*os.File) error {
+	connect, err := grpc.Dial(utils.AddressOffsetRPC(leader))
+	if err != nil {
+		f.logger.Error("grpc dial to master node error", zap.Error(err))
+		return err
+	}
+	defer connect.Close()
+	client := block_service.NewBlockServiceClient(connect)
+
+	// Pull files from the Leader node and store them, and all files are synchronized to be successful.
+	for hash, _ := range filestore {
+		chunkResp, err := client.GetChunk(context.TODO(), &block_service.GetChunkReq{
+			Hash:       hash,
+			FromMaster: true,
+		})
+		if err != nil {
+			f.logger.Error("get chunk from master error", zap.Error(err), zap.String("hash", hash))
+			return err
+		}
+		filePath := fmt.Sprintf("%s/%s", f.storePath, chunkResp.Hash)
+		if !utils.PathExist(filePath) {
+			file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC, os.ModePerm)
+			if err != nil {
+				f.logger.Error("synchronized file create error", zap.String("file", chunkResp.Hash), zap.Error(err))
+			}
+			if err := f.bufferWriteFile(file, chunkResp.Binary); err != nil {
+				f.logger.Error("data write on disk failed", zap.String("file", file.Name()), zap.Error(err))
+				return err
+			}
+			f.mutex.Lock()
+			f.filestore[chunkResp.Hash] = file
+			f.mutex.Unlock()
+		}
+	}
 	return nil
 }
