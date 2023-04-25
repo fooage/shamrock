@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 
+	http_api "github.com/fooage/shamrock/api/block/http"
+
 	rpc_api "github.com/fooage/shamrock/api/block/rpc"
 	"github.com/fooage/shamrock/core/filestore"
 	"github.com/fooage/shamrock/core/raft"
@@ -52,4 +54,5 @@ func main() {
 	// start block service's rpc apis
 	local, _ := url.Parse(strings.Split(*peers, ",")[*self-1])
 	rpc_api.ServeRPC(logger, *local, fileStorage, raftCluster)
+	http_api.ServeHttp(logger, *local, raftCluster)
 }
