@@ -15,7 +15,6 @@ import (
 	"github.com/fooage/shamrock/core/raft"
 	"github.com/fooage/shamrock/proto/proto_gen/block_service"
 	"github.com/fooage/shamrock/utils"
-	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -32,7 +31,7 @@ type FileStorage interface {
 // chunks of object, with the possibility of adding an in-memory cache in the future.
 
 type filestoreServer struct {
-	filestore map[string]*os.File
+	filestore map[string]os.FileInfo
 	snapshot  *snap.Snapshotter
 	mutex     sync.RWMutex
 	cluster   raft.Cluster
@@ -43,7 +42,7 @@ type filestoreServer struct {
 
 func NewFileStoreServer(logger *zap.Logger) FileStorage {
 	return &filestoreServer{
-		filestore: make(map[string]*os.File),
+		filestore: make(map[string]os.FileInfo),
 		storePath: "",
 		logger:    logger,
 	}
@@ -52,13 +51,11 @@ func NewFileStoreServer(logger *zap.Logger) FileStorage {
 func (f *filestoreServer) Lookup(key string) ([]byte, bool) {
 	f.mutex.RLock()
 	defer f.mutex.RUnlock()
-
-	// TODO: Check if there are concurrency issues here.
-	file, ok := f.filestore[key]
-	if !ok {
+	if _, ok := f.filestore[key]; !ok {
+		f.logger.Warn("file not found", zap.String("file", key))
 		return nil, ok
 	}
-	file, err := os.OpenFile(file.Name(), os.O_RDONLY, os.ModePerm)
+	file, err := os.OpenFile(f.generateFilePath(key), os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		f.logger.Error("open file error", zap.Error(err))
 		return nil, false
@@ -108,15 +105,9 @@ func (f *filestoreServer) Connect(cluster raft.Cluster) {
 	// Restore data from the Raft snapshot of the consistency layer.
 	f.cluster = cluster
 	f.snapshot = <-f.cluster.Snapshot()
-	snapshot, err := f.loadFromSnapshot()
+	err := f.recoverFromSnapshot()
 	if err != nil {
-		f.logger.Panic("load from snapshot error", zap.Error(err))
-	}
-	if snapshot != nil {
-		err = f.recoverFromSnapshot(snapshot)
-		if err != nil {
-			f.logger.Panic("recover Map from snapshot failed", zap.Error(err))
-		}
+		f.logger.Panic("recover Map from snapshot failed", zap.Error(err))
 	}
 
 	// Read commits from raft into filestore until error.
@@ -133,15 +124,9 @@ func (f *filestoreServer) readCommits() {
 
 		case commit := <-f.cluster.Commit():
 			if commit == nil {
-				snapshot, err := f.loadFromSnapshot()
+				err := f.recoverFromSnapshot()
 				if err != nil {
-					f.logger.Panic("load from snapshot error", zap.Error(err))
-				}
-				if snapshot != nil {
-					err := f.recoverFromSnapshot(snapshot)
-					if err != nil {
-						f.logger.Panic("recover Map from snapshot failed", zap.Error(err))
-					}
+					f.logger.Panic("recover Map from snapshot failed", zap.Error(err))
 				}
 				continue
 			}
@@ -155,18 +140,23 @@ func (f *filestoreServer) readCommits() {
 					continue
 				}
 				f.mutex.Lock()
-				file, ok := f.filestore[data.Hash]
-				if !ok {
-					file, err = os.OpenFile(fmt.Sprintf("%s/%s", f.storePath, data.Hash), os.O_CREATE|os.O_TRUNC, os.ModePerm)
-					if err != nil {
-						f.logger.Error("synchronized file create error", zap.String("file", data.Hash), zap.Error(err))
-					}
-				}
-				if err := f.bufferWriteFile(file, data.Binary); err != nil {
-					f.logger.Error("data write on disk failed", zap.String("file", file.Name()), zap.Error(err))
+				file, err := os.OpenFile(f.generateFilePath(data.Hash), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+				if err != nil {
+					f.logger.Error("synchronized file create error", zap.String("file", data.Hash), zap.Error(err))
+					file.Close()
 					continue
 				}
-				f.filestore[data.Hash] = file
+				if err = f.bufferWriteFile(file, data.Binary); err != nil {
+					f.logger.Error("data write on disk failed", zap.String("file", file.Name()), zap.Error(err))
+					file.Close()
+					continue
+				}
+				f.filestore[data.Hash], err = file.Stat()
+				if err != nil {
+					f.logger.Error("data write to file table error", zap.String("file", file.Name()), zap.Error(err))
+					file.Close()
+					continue
+				}
 				file.Close()
 				f.mutex.Unlock()
 			}
@@ -177,19 +167,17 @@ func (f *filestoreServer) readCommits() {
 	}
 }
 
-func (f *filestoreServer) loadFromSnapshot() (*raftpb.Snapshot, error) {
-	snapshot, err := f.snapshot.Load()
-	if err == snap.ErrNoSnapshot {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-	return snapshot, nil
-}
-
 // Since lightweight snapshots only record a list of files, need to actively
 // pull and overwrite files from the Leader node when restoring from snapshots.
-func (f *filestoreServer) recoverFromSnapshot(snapshot *raftpb.Snapshot) error {
+func (f *filestoreServer) recoverFromSnapshot() error {
+	snapshot, err := f.snapshot.Load()
+	if err == snap.ErrNoSnapshot {
+		return nil
+	} else if err != nil {
+		f.logger.Error("load from snapshot error", zap.Error(err))
+		return err
+	}
+
 	f.logger.Info("recover from snapshot meta data",
 		zap.Uint64("term", snapshot.Metadata.Term),
 		zap.Uint64("index", snapshot.Metadata.Index),
@@ -224,7 +212,7 @@ func (f *filestoreServer) synchronizedLeader(leader url.URL, filestore map[strin
 	client := block_service.NewBlockServiceClient(connect)
 
 	// Pull files from the Leader node and store them, and all files are synchronized to be successful.
-	for hash, _ := range filestore {
+	for hash := range filestore {
 		chunkResp, err := client.GetChunk(context.TODO(), &block_service.GetChunkReq{
 			Hash:       hash,
 			FromMaster: true,
@@ -233,20 +221,27 @@ func (f *filestoreServer) synchronizedLeader(leader url.URL, filestore map[strin
 			f.logger.Error("get chunk from master error", zap.Error(err), zap.String("hash", hash))
 			return err
 		}
-		filePath := fmt.Sprintf("%s/%s", f.storePath, chunkResp.Hash)
-		if !utils.PathExist(filePath) {
-			file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC, os.ModePerm)
-			if err != nil {
-				f.logger.Error("synchronized file create error", zap.String("file", chunkResp.Hash), zap.Error(err))
-			}
-			if err := f.bufferWriteFile(file, chunkResp.Binary); err != nil {
-				f.logger.Error("data write on disk failed", zap.String("file", file.Name()), zap.Error(err))
-				return err
-			}
-			f.mutex.Lock()
-			f.filestore[chunkResp.Hash] = file
-			f.mutex.Unlock()
+
+		f.mutex.Lock()
+		file, err := os.OpenFile(f.generateFilePath(hash), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			f.logger.Error("synchronized file create error", zap.String("file", chunkResp.Hash), zap.Error(err))
+			file.Close()
+			return err
 		}
+		if err = f.bufferWriteFile(file, chunkResp.Binary); err != nil {
+			f.logger.Error("data write on disk failed", zap.String("file", file.Name()), zap.Error(err))
+			file.Close()
+			return err
+		}
+		f.filestore[chunkResp.Hash], err = file.Stat()
+		if err != nil {
+			f.logger.Error("data write to file table error", zap.String("file", file.Name()), zap.Error(err))
+			file.Close()
+			return err
+		}
+		file.Close()
+		f.mutex.Unlock()
 	}
 	return nil
 }
