@@ -19,6 +19,8 @@ type Cluster interface {
 	Snapshot() <-chan *snap.Snapshotter
 	Propose() chan<- string
 	ConfChange() chan<- raftpb.ConfChange
+	Self() types.ID
+	Group() types.ID
 	Leader() (types.URLs, bool)
 }
 
@@ -49,6 +51,14 @@ func (rf *raftServer) Leader() (types.URLs, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (rf *raftServer) Self() types.ID {
+	return types.ID(rf.cluster.self)
+}
+
+func (rf *raftServer) Group() types.ID {
+	return types.ID(rf.cluster.group)
 }
 
 type cluster struct {

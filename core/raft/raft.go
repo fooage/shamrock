@@ -68,7 +68,7 @@ var defaultCompactLimit uint64 = 2048
 // channel, error channel and a ready snapshot.
 func NewRaftServer(logger *zap.Logger, self int, group int, peers []string, isJoin bool, proposeCh chan string, confChangeCh chan raftpb.ConfChange, snapshotFetch func() ([]byte, error)) Cluster {
 	ins := &raftServer{
-		cluster:         cluster{self: self, group: group},
+		cluster:         cluster{self: self, group: group, peers: make(map[types.ID]node)},
 		proposeCh:       proposeCh,
 		confChangeCh:    confChangeCh,
 		commitCh:        make(chan *Commit),
@@ -281,7 +281,11 @@ func (rf *raftServer) consistencyHandler() {
 				rf.stopRaft()
 				return
 			}
-			rf.cluster.update(types.ID(ready.SoftState.Lead), raft.StateLeader)
+
+			// soft state change should update leader
+			if ready.SoftState != nil {
+				rf.cluster.update(types.ID(ready.SoftState.Lead), raft.StateLeader)
+			}
 			rf.maybeTriggerSnapshot(applyDoneCh)
 			rf.node.Advance()
 		}
