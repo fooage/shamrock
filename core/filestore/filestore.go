@@ -22,7 +22,7 @@ import (
 
 type FileStorage interface {
 	Lookup(key string) ([]byte, bool)
-	Propose(key string, value []byte) error
+	Propose(command CommandType, key string, value []byte) error
 	SnapshotFetch() ([]byte, error)
 	Connect(cluster raft.Cluster)
 }
@@ -69,17 +69,25 @@ func (f *filestoreServer) Lookup(key string) ([]byte, bool) {
 	return data, true
 }
 
-// The Chunk structure is for better serialization of data between the file store
+// The LogEntry structure is for better serialization of data between the file store
 // layer and the raft layer. Encode and decode is according to its fields.
-type Chunk struct {
-	Hash   string
-	Binary []byte
+type LogEntry struct {
+	Command CommandType
+	Name    string
+	Binary  []byte
 }
 
-func (f *filestoreServer) Propose(key string, value []byte) (err error) {
+type CommandType string
+
+const (
+	SaveCommand   CommandType = "SAVE"
+	RemoveCommand CommandType = "REMOVE"
+)
+
+func (f *filestoreServer) Propose(command CommandType, key string, value []byte) (err error) {
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
-	err = encoder.Encode(Chunk{Hash: key, Binary: value})
+	err = encoder.Encode(LogEntry{Command: command, Name: key, Binary: value})
 	if err != nil {
 		f.logger.Error("can not encode file as key-value", zap.Error(err))
 		return err
@@ -114,6 +122,10 @@ func (f *filestoreServer) Connect(cluster raft.Cluster) {
 	go f.readCommits()
 }
 
+func (f *filestoreServer) generateFilePath(name string) string {
+	return fmt.Sprintf("%s/%s", f.storePath, name)
+}
+
 // readCommits is a main loop to continuously read committed data from raft layer
 // and apply it to the actual file storage until the error happen.
 func (f *filestoreServer) readCommits() {
@@ -128,43 +140,61 @@ func (f *filestoreServer) readCommits() {
 				if err != nil {
 					f.logger.Panic("recover Map from snapshot failed", zap.Error(err))
 				}
-				continue
-			}
-
-			for _, dataStr := range commit.Data {
-				data := Chunk{Hash: "", Binary: nil}
-				decoder := gob.NewDecoder(bytes.NewBufferString(dataStr))
-				err := decoder.Decode(&data)
-				if err != nil {
-					f.logger.Error("can not decode message as key-value", zap.Error(err))
-					continue
+			} else {
+				for _, dataStr := range commit.Data {
+					err := f.processCommitData(&dataStr)
+					if err != nil {
+						f.logger.Warn("process commit data failed", zap.Error(err))
+						continue
+					}
 				}
-				f.mutex.Lock()
-				file, err := os.OpenFile(f.generateFilePath(data.Hash), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-				if err != nil {
-					f.logger.Error("synchronized file create error", zap.String("file", data.Hash), zap.Error(err))
-					file.Close()
-					continue
-				}
-				if err = f.bufferWriteFile(file, data.Binary); err != nil {
-					f.logger.Error("data write on disk failed", zap.String("file", file.Name()), zap.Error(err))
-					file.Close()
-					continue
-				}
-				f.filestore[data.Hash], err = file.Stat()
-				if err != nil {
-					f.logger.Error("data write to file table error", zap.String("file", file.Name()), zap.Error(err))
-					file.Close()
-					continue
-				}
-				file.Close()
-				f.mutex.Unlock()
 			}
 
 			// Notify Raft that the message has been applied by closing the channel.
 			close(commit.ApplyDoneCh)
 		}
 	}
+}
+
+func (f *filestoreServer) processCommitData(dataStr *string) error {
+	data := LogEntry{Command: "", Name: "", Binary: nil}
+	decoder := gob.NewDecoder(bytes.NewBufferString(*dataStr))
+	err := decoder.Decode(&data)
+	if err != nil {
+		f.logger.Error("can not decode message as key-value", zap.Error(err))
+		return err
+	}
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	switch data.Command {
+	case SaveCommand:
+		file, err := os.OpenFile(f.generateFilePath(data.Name), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			f.logger.Error("synchronized file create error", zap.String("file", data.Name), zap.Error(err))
+			return err
+		}
+		defer file.Close()
+		if err = f.bufferWriteFile(file, data.Binary); err != nil {
+			f.logger.Error("data write on disk failed", zap.String("file", file.Name()), zap.Error(err))
+			return err
+		}
+		f.filestore[data.Name], err = file.Stat()
+		if err != nil {
+			f.logger.Error("data write to file table error", zap.String("file", file.Name()), zap.Error(err))
+			return err
+		}
+	case RemoveCommand:
+		err := os.Remove(f.generateFilePath(data.Name))
+		if err != nil {
+			f.logger.Error("remove file error", zap.String("file", data.Name), zap.Error(err))
+			return err
+		}
+		delete(f.filestore, data.Name)
+	default:
+		f.logger.Error("command of data log incorrect", zap.String("command", string(data.Command)))
+		return errors.New("data command incorrect")
+	}
+	return nil
 }
 
 // Since lightweight snapshots only record a list of files, need to actively
@@ -214,7 +244,7 @@ func (f *filestoreServer) synchronizedLeader(leader url.URL, filestore map[strin
 	// Pull files from the Leader node and store them, and all files are synchronized to be successful.
 	for hash := range filestore {
 		chunkResp, err := client.GetChunk(context.TODO(), &block_service.GetChunkReq{
-			Hash:       hash,
+			UniqueKey:  hash,
 			FromMaster: true,
 		})
 		if err != nil {
@@ -225,7 +255,7 @@ func (f *filestoreServer) synchronizedLeader(leader url.URL, filestore map[strin
 		f.mutex.Lock()
 		file, err := os.OpenFile(f.generateFilePath(hash), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 		if err != nil {
-			f.logger.Error("synchronized file create error", zap.String("file", chunkResp.Hash), zap.Error(err))
+			f.logger.Error("synchronized file create error", zap.String("file", chunkResp.UniqueKey), zap.Error(err))
 			file.Close()
 			return err
 		}
@@ -234,7 +264,7 @@ func (f *filestoreServer) synchronizedLeader(leader url.URL, filestore map[strin
 			file.Close()
 			return err
 		}
-		f.filestore[chunkResp.Hash], err = file.Stat()
+		f.filestore[chunkResp.UniqueKey], err = file.Stat()
 		if err != nil {
 			f.logger.Error("data write to file table error", zap.String("file", file.Name()), zap.Error(err))
 			file.Close()

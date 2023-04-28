@@ -2,7 +2,6 @@ package filestore
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"math"
 	"os"
@@ -46,8 +45,4 @@ func (f *filestoreServer) bufferWriteFile(file *os.File, data []byte) error {
 		return err
 	}
 	return nil
-}
-
-func (f *filestoreServer) generateFilePath(name string) string {
-	return fmt.Sprintf("%s/%s", f.storePath, name)
 }

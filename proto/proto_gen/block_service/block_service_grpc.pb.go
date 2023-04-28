@@ -24,8 +24,10 @@ const _ = grpc.SupportPackageIsVersion7
 type BlockServiceClient interface {
 	// To obtain object chunk according to hash, can set whether to pull from the Master node.
 	GetChunk(ctx context.Context, in *GetChunkReq, opts ...grpc.CallOption) (*GetChunkResp, error)
-	// Upload the object chunk to the Block service group.
-	UploadChunk(ctx context.Context, in *UploadChunkReq, opts ...grpc.CallOption) (*UploadChunkResp, error)
+	// Save the object chunk to the Block service group.
+	SaveChunk(ctx context.Context, in *SaveChunkReq, opts ...grpc.CallOption) (*SaveChunkResp, error)
+	// Delete object chunk by unique key.
+	RemoveChunk(ctx context.Context, in *RemoveChunkReq, opts ...grpc.CallOption) (*RemoveChunkResp, error)
 }
 
 type blockServiceClient struct {
@@ -45,9 +47,18 @@ func (c *blockServiceClient) GetChunk(ctx context.Context, in *GetChunkReq, opts
 	return out, nil
 }
 
-func (c *blockServiceClient) UploadChunk(ctx context.Context, in *UploadChunkReq, opts ...grpc.CallOption) (*UploadChunkResp, error) {
-	out := new(UploadChunkResp)
-	err := c.cc.Invoke(ctx, "/block_service.BlockService/UploadChunk", in, out, opts...)
+func (c *blockServiceClient) SaveChunk(ctx context.Context, in *SaveChunkReq, opts ...grpc.CallOption) (*SaveChunkResp, error) {
+	out := new(SaveChunkResp)
+	err := c.cc.Invoke(ctx, "/block_service.BlockService/SaveChunk", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *blockServiceClient) RemoveChunk(ctx context.Context, in *RemoveChunkReq, opts ...grpc.CallOption) (*RemoveChunkResp, error) {
+	out := new(RemoveChunkResp)
+	err := c.cc.Invoke(ctx, "/block_service.BlockService/RemoveChunk", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -60,8 +71,10 @@ func (c *blockServiceClient) UploadChunk(ctx context.Context, in *UploadChunkReq
 type BlockServiceServer interface {
 	// To obtain object chunk according to hash, can set whether to pull from the Master node.
 	GetChunk(context.Context, *GetChunkReq) (*GetChunkResp, error)
-	// Upload the object chunk to the Block service group.
-	UploadChunk(context.Context, *UploadChunkReq) (*UploadChunkResp, error)
+	// Save the object chunk to the Block service group.
+	SaveChunk(context.Context, *SaveChunkReq) (*SaveChunkResp, error)
+	// Delete object chunk by unique key.
+	RemoveChunk(context.Context, *RemoveChunkReq) (*RemoveChunkResp, error)
 	mustEmbedUnimplementedBlockServiceServer()
 }
 
@@ -72,8 +85,11 @@ type UnimplementedBlockServiceServer struct {
 func (UnimplementedBlockServiceServer) GetChunk(context.Context, *GetChunkReq) (*GetChunkResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetChunk not implemented")
 }
-func (UnimplementedBlockServiceServer) UploadChunk(context.Context, *UploadChunkReq) (*UploadChunkResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UploadChunk not implemented")
+func (UnimplementedBlockServiceServer) SaveChunk(context.Context, *SaveChunkReq) (*SaveChunkResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SaveChunk not implemented")
+}
+func (UnimplementedBlockServiceServer) RemoveChunk(context.Context, *RemoveChunkReq) (*RemoveChunkResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveChunk not implemented")
 }
 func (UnimplementedBlockServiceServer) mustEmbedUnimplementedBlockServiceServer() {}
 
@@ -106,20 +122,38 @@ func _BlockService_GetChunk_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BlockService_UploadChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UploadChunkReq)
+func _BlockService_SaveChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SaveChunkReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BlockServiceServer).UploadChunk(ctx, in)
+		return srv.(BlockServiceServer).SaveChunk(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/block_service.BlockService/UploadChunk",
+		FullMethod: "/block_service.BlockService/SaveChunk",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockServiceServer).UploadChunk(ctx, req.(*UploadChunkReq))
+		return srv.(BlockServiceServer).SaveChunk(ctx, req.(*SaveChunkReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BlockService_RemoveChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveChunkReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockServiceServer).RemoveChunk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/block_service.BlockService/RemoveChunk",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockServiceServer).RemoveChunk(ctx, req.(*RemoveChunkReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -136,8 +170,12 @@ var BlockService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BlockService_GetChunk_Handler,
 		},
 		{
-			MethodName: "UploadChunk",
-			Handler:    _BlockService_UploadChunk_Handler,
+			MethodName: "SaveChunk",
+			Handler:    _BlockService_SaveChunk_Handler,
+		},
+		{
+			MethodName: "RemoveChunk",
+			Handler:    _BlockService_RemoveChunk_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

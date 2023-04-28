@@ -7,25 +7,36 @@ option go_package = "./block_service";
 service BlockService {
   // To obtain object chunk according to hash, can set whether to pull from the Master node.
   rpc GetChunk(GetChunkReq) returns (GetChunkResp) {}
-  // Upload the object chunk to the Block service group.
-  rpc UploadChunk(UploadChunkReq) returns (UploadChunkResp) {}
+  // Save the object chunk to the Block service group.
+  rpc SaveChunk(SaveChunkReq) returns (SaveChunkResp) {}
+  // Delete object chunk by unique key.
+  rpc RemoveChunk(RemoveChunkReq) returns (RemoveChunkResp) {}
 }
 
 message GetChunkReq {
-  string hash = 1;
+  string unique_key = 1;
   bool from_master = 2;
 }
 
 message GetChunkResp {
-  string hash = 1;
+  string unique_key = 1;
   bytes binary = 2;
 }
 
-message UploadChunkReq {
-  string hash = 1;
+// When the unique key here is the same, the file will be overwritten.
+message SaveChunkReq {
+  string unique_key = 1;
   bytes binary = 2;
 }
 
-message UploadChunkResp {
-  // TODO: Set callbacks for the propose behavior.
+message SaveChunkResp {
+  // TODO: Set synchronous callbacks for the propose behavior.
+}
+
+message RemoveChunkReq {
+  string unique_key = 1;
+}
+
+message RemoveChunkResp {
+  // TODO: Set synchronous callbacks for the propose behavior.
 }
