@@ -41,7 +41,6 @@ func ServeHttp(logger *zap.Logger, local url.URL, kvStorage kvstore.KVStorage, r
 	// chunk meta info related apis for route client request
 	chunk := router.Group("/meta/chunks")
 	{
-		chunk.GET("/", handler.QueryChunkMetas)
 		chunk.GET("/:hash", handler.QueryChunkMeta)
 		chunk.PUT("/:hash", handler.UpdateChunkMeta)
 	}

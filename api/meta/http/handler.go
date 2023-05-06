@@ -120,45 +120,6 @@ func (h *handler) UpdateObjectMeta(c *gin.Context) {
 	c.JSON(http.StatusAccepted, nil)
 }
 
-func (h *handler) QueryChunkMetas(c *gin.Context) {
-	var reqBody struct {
-		HashList  []string `json:"hash_list"`
-		BatchSize int      `json:"batch_size"`
-	}
-	err := c.BindJSON(&reqBody)
-	if err != nil || reqBody.BatchSize > 100 || reqBody.BatchSize != len(reqBody.HashList) {
-		h.logger.Error("query chunk metas param error",
-			zap.Error(err),
-			zap.Strings("hash_list", reqBody.HashList),
-			zap.Int("batch_size", reqBody.BatchSize),
-		)
-		c.JSON(http.StatusBadRequest, nil)
-		return
-	}
-
-	result := make([]ChunkMeta, 0, reqBody.BatchSize)
-	for _, hash := range reqBody.HashList {
-		key := generateChunkMetaKey(hash)
-		if value, ok := h.kvStorage.Lookup(key); ok {
-			var data ChunkMeta
-			err := json.Unmarshal([]byte(value), &data)
-			if err != nil {
-				h.logger.Error("chunk meta json unmarshal failed", zap.Error(err))
-				c.JSON(http.StatusInternalServerError, nil)
-				return
-			}
-			result = append(result, data)
-		}
-	}
-
-	// This query may not return all chunk metas needed, but think it is acceptable.
-	if len(result) < reqBody.BatchSize {
-		c.JSON(http.StatusNotFound, result)
-	} else {
-		c.JSON(http.StatusOK, result)
-	}
-}
-
 func (h *handler) QueryChunkMeta(c *gin.Context) {
 	hash := c.Param("hash")
 	key := generateChunkMetaKey(hash)
