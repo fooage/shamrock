@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/fooage/shamrock/core/raft"
 	"github.com/fooage/shamrock/proto/proto_gen/block_service"
@@ -31,11 +32,12 @@ type FileStorage interface {
 // chunks of object, with the possibility of adding an in-memory cache in the future.
 
 type filestoreServer struct {
-	filestore map[string]os.FileInfo
-	snapshot  *snap.Snapshotter
-	mutex     sync.RWMutex
-	cluster   raft.Cluster
-	storePath string
+	filestore   map[string]os.FileInfo
+	proposeDone sync.Map
+	snapshot    *snap.Snapshotter
+	mutex       sync.RWMutex
+	cluster     raft.Cluster
+	storePath   string
 
 	logger *zap.Logger
 }
@@ -92,8 +94,21 @@ func (f *filestoreServer) Propose(command CommandType, key string, value []byte)
 		f.logger.Error("can not encode file as key-value", zap.Error(err))
 		return err
 	}
+
+	f.proposeDone.Store(key, make(chan struct{}))
+	defer f.proposeDone.Delete(key)
 	f.cluster.Propose() <- buf.String()
-	return nil
+	if proposeDone, ok := f.proposeDone.Load(key); ok {
+		select {
+		case <-proposeDone.(chan struct{}):
+			f.logger.Info("file data propose done", zap.String("key", key))
+			return nil
+		case <-time.After(5 * time.Second):
+			return errors.New("propose wait time out")
+		}
+	}
+
+	return errors.New("done channel load error")
 }
 
 func (f *filestoreServer) SnapshotFetch() ([]byte, error) {
@@ -164,6 +179,7 @@ func (f *filestoreServer) processCommitData(dataStr *string) error {
 		f.logger.Error("can not decode message as key-value", zap.Error(err))
 		return err
 	}
+
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	switch data.Command {
@@ -193,6 +209,13 @@ func (f *filestoreServer) processCommitData(dataStr *string) error {
 	default:
 		f.logger.Error("command of data log incorrect", zap.String("command", string(data.Command)))
 		return errors.New("data command incorrect")
+	}
+
+	// Here it is necessary to notify the upper layer that Raft has completed
+	// the synchronization of data, and it can be considered that the data is
+	// written successfully.
+	if proposeDone, ok := f.proposeDone.Load(data.Name); ok {
+		proposeDone.(chan struct{}) <- struct{}{}
 	}
 	return nil
 }

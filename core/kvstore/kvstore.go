@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"sync"
+	"time"
 
 	"github.com/fooage/shamrock/core/raft"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -23,10 +25,11 @@ type KVStorage interface {
 // file routing table on meta server, also store the file table in each filestore.
 
 type kvstoreServer struct {
-	kvstore  map[string]string
-	snapshot *snap.Snapshotter
-	mutex    sync.RWMutex
-	cluster  raft.Cluster
+	kvstore     map[string]string
+	proposeDone sync.Map
+	snapshot    *snap.Snapshotter
+	mutex       sync.RWMutex
+	cluster     raft.Cluster
 
 	logger *zap.Logger
 }
@@ -60,8 +63,21 @@ func (kv *kvstoreServer) Propose(key string, value string) error {
 		kv.logger.Error("can not encode message as key-value", zap.Error(err))
 		return err
 	}
+
+	kv.proposeDone.Store(key, make(chan struct{}))
+	defer kv.proposeDone.Delete(key)
 	kv.cluster.Propose() <- buf.String()
-	return nil
+	if proposeDone, ok := kv.proposeDone.Load(key); ok {
+		select {
+		case <-proposeDone.(chan struct{}):
+			kv.logger.Info("key-value data propose done", zap.String("key", key))
+			return nil
+		case <-time.After(5 * time.Second):
+			return errors.New("propose wait time out")
+		}
+	}
+
+	return errors.New("done channel load error")
 }
 
 func (kv *kvstoreServer) SnapshotFetch() ([]byte, error) {
@@ -121,6 +137,12 @@ func (kv *kvstoreServer) readCommits(commitCh <-chan *raft.Commit, errorCh <-cha
 				kv.mutex.Lock()
 				kv.kvstore[data.Key] = data.Value
 				kv.mutex.Unlock()
+				// Here it is necessary to notify the upper layer that Raft has completed
+				// the synchronization of data, and it can be considered that the data is
+				// written successfully.
+				if proposeDone, ok := kv.proposeDone.Load(data.Key); ok {
+					proposeDone.(chan struct{}) <- struct{}{}
+				}
 			}
 
 			// Notify Raft that the message has been applied by closing the channel.
