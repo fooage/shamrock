@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package meta_service;
+
+option go_package = "./meta_service";
+
+service MetaService {
+  // Query or update meta information about storage objects.
+  rpc QueryObjectMeta(QueryObjectMetaReq) returns (QueryObjectMetaResp) {}
+  rpc UpdateObjectStatus(UpdateObjectStatusReq) returns (UpdateObjectStatusResp) {}
+  // Query or update chunk meta and routing information.
+  rpc QueryChunkMeta(QueryChunkMetaReq) returns (QueryChunkMetaResp) {}
+  rpc UpdateChunkStatus(UpdateChunkStatusReq) returns (UpdateChunkStatusResp) {}
+  // The registration object completes the route table construction.
+  rpc RegisterObject(RegisterObjectReq) returns (RegisterObjectResp) {}
+}
+
+message ObjectMeta {
+  string unique_key = 1; // the unique key of object
+  EntryStatus status = 2; // the status of object
+  int64 size = 3; // byte unit size of the object
+  repeated string chunk_list = 4; // chunk list of the object to which it belongs
+}
+
+message ChunkMeta {
+  string unique_key = 1; // the unique key of chunk
+  EntryStatus status = 2; // the status of chunk
+  string parent = 3; // the object unique key to which the chunk belongs
+  int64 index = 4; // chunk's order in the whole object
+  int64 store_group = 5; // block storage Raft group where chunk are stored
+}
+
+message QueryObjectMetaReq {
+  string unique_key = 1;
+}
+
+message QueryObjectMetaResp {
+  ObjectMeta meta = 1;
+}
+
+message UpdateObjectStatusReq {
+  string unique_key = 1;
+  EntryStatus status = 2;
+}
+
+message UpdateObjectStatusResp {
+  // TODO: Set synchronous callbacks for the propose behavior.
+}
+
+// NOTE: The naming here is different from the block storage service because it needs
+// to understand the concept of object chunk.
+
+message QueryChunkMetaReq {
+  repeated string unique_keys = 1;
+}
+
+message QueryChunkMetaResp {
+  map<string, ChunkMeta> result = 1;
+}
+
+message UpdateChunkStatusReq {
+  repeated string unique_keys = 1;
+  EntryStatus status = 2;
+}
+
+message UpdateChunkStatusResp {
+  // TODO: Set synchronous callbacks for the propose behavior.
+}
+
+// Before uploading a new object, it need to register and initialize the
+// metadata, after which a unique key and a constructed route table are returned.
+message RegisterObjectReq {
+  string name = 1;
+  int64 size = 2;
+  repeated string hash_list = 3;
+}
+
+message RegisterObjectResp {
+  ObjectMeta meta = 1;
+}
+
+enum EntryStatus {
+  // Metadata is registered, but the entity data has not been uploaded.
+  Registered = 0;
+  // The metadata is registered and some entity data is being stored.
+  Storing = 1;
+  // The storage entity is fully stored and available.
+  Available = 2;
+  // Storage entity has been deleted and will be purged periodically.
+  Deleted = 3;
+}

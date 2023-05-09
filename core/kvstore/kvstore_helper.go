@@ -1,4 +1,4 @@
-package http_api
+package kvstore
 
 import "fmt"
 
@@ -7,10 +7,10 @@ const (
 	ChunkMetaKeyTemplate  string = "chunk-meta:%s"
 )
 
-func generateObjectMetaKey(name string) string {
+func GenerateObjectMetaKey(name string) string {
 	return fmt.Sprintf(ObjectMetaKeyTemplate, name)
 }
 
-func generateChunkMetaKey(hash string) string {
+func GenerateChunkMetaKey(hash string) string {
 	return fmt.Sprintf(ChunkMetaKeyTemplate, hash)
 }

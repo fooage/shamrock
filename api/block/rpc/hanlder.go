@@ -26,31 +26,35 @@ func generateHandler(logger *zap.Logger, fileStorage filestore.FileStorage, raft
 	}
 }
 
-func (h *handler) GetChunk(ctx context.Context, req *block_service.GetChunkReq) (*block_service.GetChunkResp, error) {
+func (h *handler) FetchBlock(ctx context.Context, req *block_service.FetchBlockReq) (*block_service.FetchBlockResp, error) {
 	if value, ok := h.fileStorage.Lookup(req.UniqueKey); ok {
-		return &block_service.GetChunkResp{
-			UniqueKey: req.UniqueKey, Binary: value,
+		return &block_service.FetchBlockResp{
+			Entry: &block_service.BlockEntry{
+				UniqueKey: value.UniqueKey,
+				Hash:      value.Hash,
+				Binary:    value.Binary,
+			},
 		}, nil
 	} else {
-		h.logger.Error("request chunk not found", zap.String("hash", req.UniqueKey))
+		h.logger.Error("request block not found", zap.String("key", req.UniqueKey))
 		return nil, errors.New("")
 	}
 }
 
-func (h *handler) SaveChunk(ctx context.Context, req *block_service.SaveChunkReq) (*block_service.SaveChunkResp, error) {
-	err := h.fileStorage.Propose(filestore.SaveCommand, req.UniqueKey, req.Binary)
+func (h *handler) StoreBlock(ctx context.Context, req *block_service.StoreBlockReq) (*block_service.StoreBlockResp, error) {
+	err := h.fileStorage.Propose(filestore.StoreCommand, req.Entry)
 	if err != nil {
-		h.logger.Error("propose chunk in cluster error", zap.Error(err), zap.String("hash", req.UniqueKey))
+		h.logger.Error("propose block in cluster error", zap.Error(err), zap.String("key", req.Entry.UniqueKey))
 		return nil, err
 	}
-	return &block_service.SaveChunkResp{}, nil
+	return &block_service.StoreBlockResp{}, nil
 }
 
-func (h *handler) RemoveChunk(ctx context.Context, req *block_service.RemoveChunkReq) (*block_service.RemoveChunkResp, error) {
-	err := h.fileStorage.Propose(filestore.RemoveCommand, req.UniqueKey, nil)
+func (h *handler) DeleteBlock(ctx context.Context, req *block_service.DeleteBlockReq) (*block_service.DeleteBlockResp, error) {
+	err := h.fileStorage.Propose(filestore.DeleteCommand, &block_service.BlockEntry{UniqueKey: req.UniqueKey})
 	if err != nil {
-		h.logger.Error("remove chunk in cluster error", zap.Error(err), zap.String("hash", req.UniqueKey))
+		h.logger.Error("remove block in cluster error", zap.Error(err), zap.String("key", req.UniqueKey))
 		return nil, err
 	}
-	return &block_service.RemoveChunkResp{}, nil
+	return &block_service.DeleteBlockResp{}, nil
 }

@@ -34,14 +34,14 @@ func ServeHttp(logger *zap.Logger, local url.URL, kvStorage kvstore.KVStorage, r
 	// object meta info storage-related operational apis
 	object := router.Group("/meta/objects")
 	{
-		object.GET("/:name", handler.QueryObjectMeta)
-		object.PUT("/:name", handler.UpdateObjectMeta)
+		object.GET("/:unique_key", handler.QueryObjectMeta)
+		object.PUT("/:unique_key", handler.UpdateObjectMeta)
 	}
 
 	// chunk meta info related apis for route client request
 	chunk := router.Group("/meta/chunks")
 	{
-		chunk.GET("/:hash", handler.QueryChunkMeta)
-		chunk.PUT("/:hash", handler.UpdateChunkMeta)
+		chunk.GET("/:unique_key", handler.QueryChunkMeta)
+		chunk.PUT("/:unique_key", handler.UpdateChunkMeta)
 	}
 }

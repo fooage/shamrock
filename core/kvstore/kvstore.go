@@ -30,8 +30,7 @@ type kvstoreServer struct {
 	snapshot    *snap.Snapshotter
 	mutex       sync.RWMutex
 	cluster     raft.Cluster
-
-	logger *zap.Logger
+	logger      *zap.Logger
 }
 
 func NewKVStoreServer(logger *zap.Logger) KVStorage {

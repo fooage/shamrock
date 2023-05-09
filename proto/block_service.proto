@@ -5,38 +5,42 @@ package block_service;
 option go_package = "./block_service";
 
 service BlockService {
-  // To obtain object chunk according to hash, can set whether to pull from the Master node.
-  rpc GetChunk(GetChunkReq) returns (GetChunkResp) {}
-  // Save the object chunk to the Block service group.
-  rpc SaveChunk(SaveChunkReq) returns (SaveChunkResp) {}
-  // Delete object chunk by unique key.
-  rpc RemoveChunk(RemoveChunkReq) returns (RemoveChunkResp) {}
+  // To obtain object block according to unique key, can set whether to pull from the Master node.
+  rpc FetchBlock(FetchBlockReq) returns (FetchBlockResp) {}
+  // Store the object block to the Block service group.
+  rpc StoreBlock(StoreBlockReq) returns (StoreBlockResp) {}
+  // Delete object block by unique key.
+  rpc DeleteBlock(DeleteBlockReq) returns (DeleteBlockResp) {}
 }
 
-message GetChunkReq {
+message BlockEntry {
+  string unique_key = 1; // block entry's unique key
+  string hash = 2; // hash of this block for data validation
+  bytes binary = 3; // the binary data of the block
+}
+
+message FetchBlockReq {
   string unique_key = 1;
   bool from_master = 2;
 }
 
-message GetChunkResp {
-  string unique_key = 1;
-  bytes binary = 2;
+message FetchBlockResp {
+  BlockEntry entry = 1;
 }
 
 // When the unique key here is the same, the file will be overwritten.
-message SaveChunkReq {
-  string unique_key = 1;
-  bytes binary = 2;
+message StoreBlockReq {
+  BlockEntry entry = 1;
 }
 
-message SaveChunkResp {
+message StoreBlockResp {
   // TODO: Set synchronous callbacks for the propose behavior.
 }
 
-message RemoveChunkReq {
+message DeleteBlockReq {
   string unique_key = 1;
 }
 
-message RemoveChunkResp {
+message DeleteBlockResp {
   // TODO: Set synchronous callbacks for the propose behavior.
 }

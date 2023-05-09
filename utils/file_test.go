@@ -1,4 +1,4 @@
-package filestore
+package utils
 
 import (
 	"io/ioutil"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func Test_filestoreServer_bufferReadFile(t *testing.T) {
+func Test_BufferReadFile(t *testing.T) {
 	file, err := ioutil.TempFile("", "example")
 	if err != nil {
 		t.Fatal(err)
@@ -24,9 +24,8 @@ func Test_filestoreServer_bufferReadFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test bufferReadFile function.
-	ins := &filestoreServer{}
-	result, err := ins.bufferReadFile(file)
+	// Test BufferReadFile function.
+	result, err := BufferReadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +38,7 @@ func Test_filestoreServer_bufferReadFile(t *testing.T) {
 	}
 }
 
-func Test_filestoreServer_bufferWriteFile(t *testing.T) {
+func Test_BufferWriteFile(t *testing.T) {
 	file, err := ioutil.TempFile("", "example")
 	if err != nil {
 		t.Fatal(err)
@@ -53,9 +52,8 @@ func Test_filestoreServer_bufferWriteFile(t *testing.T) {
 		data = append(data, []byte(text)...)
 	}
 
-	// Test bufferWriteFile function.
-	ins := &filestoreServer{}
-	if err := ins.bufferWriteFile(file, data); err != nil {
+	// Test BufferWriteFile function.
+	if err := BufferWriteFile(file, data); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := file.Seek(0, 0); err != nil {

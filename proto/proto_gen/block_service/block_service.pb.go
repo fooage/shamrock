@@ -20,17 +20,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetChunkReq struct {
+type BlockEntry struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	UniqueKey  string `protobuf:"bytes,1,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"`
-	FromMaster bool   `protobuf:"varint,2,opt,name=from_master,json=fromMaster,proto3" json:"from_master,omitempty"`
+	UniqueKey string `protobuf:"bytes,1,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"` // block entry's unique key
+	Hash      string `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`                            // hash of this block for data validation
+	Binary    []byte `protobuf:"bytes,3,opt,name=binary,proto3" json:"binary,omitempty"`                        // the binary data of the block
 }
 
-func (x *GetChunkReq) Reset() {
-	*x = GetChunkReq{}
+func (x *BlockEntry) Reset() {
+	*x = BlockEntry{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_block_service_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -38,13 +39,13 @@ func (x *GetChunkReq) Reset() {
 	}
 }
 
-func (x *GetChunkReq) String() string {
+func (x *BlockEntry) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetChunkReq) ProtoMessage() {}
+func (*BlockEntry) ProtoMessage() {}
 
-func (x *GetChunkReq) ProtoReflect() protoreflect.Message {
+func (x *BlockEntry) ProtoReflect() protoreflect.Message {
 	mi := &file_block_service_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,36 +57,43 @@ func (x *GetChunkReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetChunkReq.ProtoReflect.Descriptor instead.
-func (*GetChunkReq) Descriptor() ([]byte, []int) {
+// Deprecated: Use BlockEntry.ProtoReflect.Descriptor instead.
+func (*BlockEntry) Descriptor() ([]byte, []int) {
 	return file_block_service_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetChunkReq) GetUniqueKey() string {
+func (x *BlockEntry) GetUniqueKey() string {
 	if x != nil {
 		return x.UniqueKey
 	}
 	return ""
 }
 
-func (x *GetChunkReq) GetFromMaster() bool {
+func (x *BlockEntry) GetHash() string {
 	if x != nil {
-		return x.FromMaster
+		return x.Hash
 	}
-	return false
+	return ""
 }
 
-type GetChunkResp struct {
+func (x *BlockEntry) GetBinary() []byte {
+	if x != nil {
+		return x.Binary
+	}
+	return nil
+}
+
+type FetchBlockReq struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	UniqueKey string `protobuf:"bytes,1,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"`
-	Binary    []byte `protobuf:"bytes,2,opt,name=binary,proto3" json:"binary,omitempty"`
+	UniqueKey  string `protobuf:"bytes,1,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"`
+	FromMaster bool   `protobuf:"varint,2,opt,name=from_master,json=fromMaster,proto3" json:"from_master,omitempty"`
 }
 
-func (x *GetChunkResp) Reset() {
-	*x = GetChunkResp{}
+func (x *FetchBlockReq) Reset() {
+	*x = FetchBlockReq{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_block_service_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -93,13 +101,13 @@ func (x *GetChunkResp) Reset() {
 	}
 }
 
-func (x *GetChunkResp) String() string {
+func (x *FetchBlockReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetChunkResp) ProtoMessage() {}
+func (*FetchBlockReq) ProtoMessage() {}
 
-func (x *GetChunkResp) ProtoReflect() protoreflect.Message {
+func (x *FetchBlockReq) ProtoReflect() protoreflect.Message {
 	mi := &file_block_service_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -111,37 +119,35 @@ func (x *GetChunkResp) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetChunkResp.ProtoReflect.Descriptor instead.
-func (*GetChunkResp) Descriptor() ([]byte, []int) {
+// Deprecated: Use FetchBlockReq.ProtoReflect.Descriptor instead.
+func (*FetchBlockReq) Descriptor() ([]byte, []int) {
 	return file_block_service_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetChunkResp) GetUniqueKey() string {
+func (x *FetchBlockReq) GetUniqueKey() string {
 	if x != nil {
 		return x.UniqueKey
 	}
 	return ""
 }
 
-func (x *GetChunkResp) GetBinary() []byte {
+func (x *FetchBlockReq) GetFromMaster() bool {
 	if x != nil {
-		return x.Binary
+		return x.FromMaster
 	}
-	return nil
+	return false
 }
 
-// When the unique key here is the same, the file will be overwritten.
-type SaveChunkReq struct {
+type FetchBlockResp struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	UniqueKey string `protobuf:"bytes,1,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"`
-	Binary    []byte `protobuf:"bytes,2,opt,name=binary,proto3" json:"binary,omitempty"`
+	Entry *BlockEntry `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
 }
 
-func (x *SaveChunkReq) Reset() {
-	*x = SaveChunkReq{}
+func (x *FetchBlockResp) Reset() {
+	*x = FetchBlockResp{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_block_service_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -149,13 +155,13 @@ func (x *SaveChunkReq) Reset() {
 	}
 }
 
-func (x *SaveChunkReq) String() string {
+func (x *FetchBlockResp) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SaveChunkReq) ProtoMessage() {}
+func (*FetchBlockResp) ProtoMessage() {}
 
-func (x *SaveChunkReq) ProtoReflect() protoreflect.Message {
+func (x *FetchBlockResp) ProtoReflect() protoreflect.Message {
 	mi := &file_block_service_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -167,33 +173,29 @@ func (x *SaveChunkReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SaveChunkReq.ProtoReflect.Descriptor instead.
-func (*SaveChunkReq) Descriptor() ([]byte, []int) {
+// Deprecated: Use FetchBlockResp.ProtoReflect.Descriptor instead.
+func (*FetchBlockResp) Descriptor() ([]byte, []int) {
 	return file_block_service_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SaveChunkReq) GetUniqueKey() string {
+func (x *FetchBlockResp) GetEntry() *BlockEntry {
 	if x != nil {
-		return x.UniqueKey
-	}
-	return ""
-}
-
-func (x *SaveChunkReq) GetBinary() []byte {
-	if x != nil {
-		return x.Binary
+		return x.Entry
 	}
 	return nil
 }
 
-type SaveChunkResp struct {
+// When the unique key here is the same, the file will be overwritten.
+type StoreBlockReq struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	Entry *BlockEntry `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
 }
 
-func (x *SaveChunkResp) Reset() {
-	*x = SaveChunkResp{}
+func (x *StoreBlockReq) Reset() {
+	*x = StoreBlockReq{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_block_service_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -201,13 +203,13 @@ func (x *SaveChunkResp) Reset() {
 	}
 }
 
-func (x *SaveChunkResp) String() string {
+func (x *StoreBlockReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SaveChunkResp) ProtoMessage() {}
+func (*StoreBlockReq) ProtoMessage() {}
 
-func (x *SaveChunkResp) ProtoReflect() protoreflect.Message {
+func (x *StoreBlockReq) ProtoReflect() protoreflect.Message {
 	mi := &file_block_service_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -219,21 +221,26 @@ func (x *SaveChunkResp) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SaveChunkResp.ProtoReflect.Descriptor instead.
-func (*SaveChunkResp) Descriptor() ([]byte, []int) {
+// Deprecated: Use StoreBlockReq.ProtoReflect.Descriptor instead.
+func (*StoreBlockReq) Descriptor() ([]byte, []int) {
 	return file_block_service_proto_rawDescGZIP(), []int{3}
 }
 
-type RemoveChunkReq struct {
+func (x *StoreBlockReq) GetEntry() *BlockEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+type StoreBlockResp struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
-
-	UniqueKey string `protobuf:"bytes,1,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"`
 }
 
-func (x *RemoveChunkReq) Reset() {
-	*x = RemoveChunkReq{}
+func (x *StoreBlockResp) Reset() {
+	*x = StoreBlockResp{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_block_service_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -241,13 +248,13 @@ func (x *RemoveChunkReq) Reset() {
 	}
 }
 
-func (x *RemoveChunkReq) String() string {
+func (x *StoreBlockResp) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RemoveChunkReq) ProtoMessage() {}
+func (*StoreBlockResp) ProtoMessage() {}
 
-func (x *RemoveChunkReq) ProtoReflect() protoreflect.Message {
+func (x *StoreBlockResp) ProtoReflect() protoreflect.Message {
 	mi := &file_block_service_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -259,26 +266,21 @@ func (x *RemoveChunkReq) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RemoveChunkReq.ProtoReflect.Descriptor instead.
-func (*RemoveChunkReq) Descriptor() ([]byte, []int) {
+// Deprecated: Use StoreBlockResp.ProtoReflect.Descriptor instead.
+func (*StoreBlockResp) Descriptor() ([]byte, []int) {
 	return file_block_service_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RemoveChunkReq) GetUniqueKey() string {
-	if x != nil {
-		return x.UniqueKey
-	}
-	return ""
-}
-
-type RemoveChunkResp struct {
+type DeleteBlockReq struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	UniqueKey string `protobuf:"bytes,1,opt,name=unique_key,json=uniqueKey,proto3" json:"unique_key,omitempty"`
 }
 
-func (x *RemoveChunkResp) Reset() {
-	*x = RemoveChunkResp{}
+func (x *DeleteBlockReq) Reset() {
+	*x = DeleteBlockReq{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_block_service_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -286,13 +288,13 @@ func (x *RemoveChunkResp) Reset() {
 	}
 }
 
-func (x *RemoveChunkResp) String() string {
+func (x *DeleteBlockReq) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RemoveChunkResp) ProtoMessage() {}
+func (*DeleteBlockReq) ProtoMessage() {}
 
-func (x *RemoveChunkResp) ProtoReflect() protoreflect.Message {
+func (x *DeleteBlockReq) ProtoReflect() protoreflect.Message {
 	mi := &file_block_service_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -304,9 +306,54 @@ func (x *RemoveChunkResp) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RemoveChunkResp.ProtoReflect.Descriptor instead.
-func (*RemoveChunkResp) Descriptor() ([]byte, []int) {
+// Deprecated: Use DeleteBlockReq.ProtoReflect.Descriptor instead.
+func (*DeleteBlockReq) Descriptor() ([]byte, []int) {
 	return file_block_service_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DeleteBlockReq) GetUniqueKey() string {
+	if x != nil {
+		return x.UniqueKey
+	}
+	return ""
+}
+
+type DeleteBlockResp struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *DeleteBlockResp) Reset() {
+	*x = DeleteBlockResp{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_block_service_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DeleteBlockResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteBlockResp) ProtoMessage() {}
+
+func (x *DeleteBlockResp) ProtoReflect() protoreflect.Message {
+	mi := &file_block_service_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteBlockResp.ProtoReflect.Descriptor instead.
+func (*DeleteBlockResp) Descriptor() ([]byte, []int) {
+	return file_block_service_proto_rawDescGZIP(), []int{6}
 }
 
 var File_block_service_proto protoreflect.FileDescriptor
@@ -314,43 +361,48 @@ var File_block_service_proto protoreflect.FileDescriptor
 var file_block_service_proto_rawDesc = []byte{
 	0x0a, 0x13, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x0d, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72,
-	0x76, 0x69, 0x63, 0x65, 0x22, 0x4d, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b,
-	0x52, 0x65, 0x71, 0x12, 0x1d, 0x0a, 0x0a, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x5f, 0x6b, 0x65,
-	0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x4b,
-	0x65, 0x79, 0x12, 0x1f, 0x0a, 0x0b, 0x66, 0x72, 0x6f, 0x6d, 0x5f, 0x6d, 0x61, 0x73, 0x74, 0x65,
-	0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x0a, 0x66, 0x72, 0x6f, 0x6d, 0x4d, 0x61, 0x73,
-	0x74, 0x65, 0x72, 0x22, 0x45, 0x0a, 0x0c, 0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52,
-	0x65, 0x73, 0x70, 0x12, 0x1d, 0x0a, 0x0a, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x5f, 0x6b, 0x65,
-	0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x4b,
-	0x65, 0x79, 0x12, 0x16, 0x0a, 0x06, 0x62, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x0c, 0x52, 0x06, 0x62, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x22, 0x45, 0x0a, 0x0c, 0x53, 0x61,
-	0x76, 0x65, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52, 0x65, 0x71, 0x12, 0x1d, 0x0a, 0x0a, 0x75, 0x6e,
-	0x69, 0x71, 0x75, 0x65, 0x5f, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09,
-	0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x4b, 0x65, 0x79, 0x12, 0x16, 0x0a, 0x06, 0x62, 0x69, 0x6e,
-	0x61, 0x72, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x62, 0x69, 0x6e, 0x61, 0x72,
-	0x79, 0x22, 0x0f, 0x0a, 0x0d, 0x53, 0x61, 0x76, 0x65, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52, 0x65,
-	0x73, 0x70, 0x22, 0x2f, 0x0a, 0x0e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x43, 0x68, 0x75, 0x6e,
-	0x6b, 0x52, 0x65, 0x71, 0x12, 0x1d, 0x0a, 0x0a, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x5f, 0x6b,
-	0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65,
-	0x4b, 0x65, 0x79, 0x22, 0x11, 0x0a, 0x0f, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x43, 0x68, 0x75,
-	0x6e, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x32, 0xef, 0x01, 0x0a, 0x0c, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
-	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x45, 0x0a, 0x08, 0x47, 0x65, 0x74, 0x43, 0x68,
-	0x75, 0x6e, 0x6b, 0x12, 0x1a, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76,
-	0x69, 0x63, 0x65, 0x2e, 0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52, 0x65, 0x71, 0x1a,
-	0x1b, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e,
-	0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x22, 0x00, 0x12, 0x48,
-	0x0a, 0x09, 0x53, 0x61, 0x76, 0x65, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x12, 0x1b, 0x2e, 0x62, 0x6c,
-	0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x53, 0x61, 0x76, 0x65,
-	0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52, 0x65, 0x71, 0x1a, 0x1c, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b,
-	0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x53, 0x61, 0x76, 0x65, 0x43, 0x68, 0x75,
-	0x6e, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x22, 0x00, 0x12, 0x4e, 0x0a, 0x0b, 0x52, 0x65, 0x6d, 0x6f,
-	0x76, 0x65, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x12, 0x1d, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f,
-	0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x43, 0x68,
-	0x75, 0x6e, 0x6b, 0x52, 0x65, 0x71, 0x1a, 0x1e, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73,
-	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x43, 0x68, 0x75,
-	0x6e, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x22, 0x00, 0x42, 0x11, 0x5a, 0x0f, 0x2e, 0x2f, 0x62, 0x6c,
-	0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x33,
+	0x76, 0x69, 0x63, 0x65, 0x22, 0x57, 0x0a, 0x0a, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x45, 0x6e, 0x74,
+	0x72, 0x79, 0x12, 0x1d, 0x0a, 0x0a, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x5f, 0x6b, 0x65, 0x79,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x4b, 0x65,
+	0x79, 0x12, 0x12, 0x0a, 0x04, 0x68, 0x61, 0x73, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x04, 0x68, 0x61, 0x73, 0x68, 0x12, 0x16, 0x0a, 0x06, 0x62, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x62, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x22, 0x4f, 0x0a,
+	0x0d, 0x46, 0x65, 0x74, 0x63, 0x68, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x12, 0x1d,
+	0x0a, 0x0a, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x5f, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x09, 0x75, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x4b, 0x65, 0x79, 0x12, 0x1f, 0x0a,
+	0x0b, 0x66, 0x72, 0x6f, 0x6d, 0x5f, 0x6d, 0x61, 0x73, 0x74, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x08, 0x52, 0x0a, 0x66, 0x72, 0x6f, 0x6d, 0x4d, 0x61, 0x73, 0x74, 0x65, 0x72, 0x22, 0x41,
+	0x0a, 0x0e, 0x46, 0x65, 0x74, 0x63, 0x68, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70,
+	0x12, 0x2f, 0x0a, 0x05, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x19, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e,
+	0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x05, 0x65, 0x6e, 0x74, 0x72,
+	0x79, 0x22, 0x40, 0x0a, 0x0d, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52,
+	0x65, 0x71, 0x12, 0x2f, 0x0a, 0x05, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x19, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63,
+	0x65, 0x2e, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x05, 0x65, 0x6e,
+	0x74, 0x72, 0x79, 0x22, 0x10, 0x0a, 0x0e, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x42, 0x6c, 0x6f, 0x63,
+	0x6b, 0x52, 0x65, 0x73, 0x70, 0x22, 0x2f, 0x0a, 0x0e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x42,
+	0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x12, 0x1d, 0x0a, 0x0a, 0x75, 0x6e, 0x69, 0x71, 0x75,
+	0x65, 0x5f, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x75, 0x6e, 0x69,
+	0x71, 0x75, 0x65, 0x4b, 0x65, 0x79, 0x22, 0x11, 0x0a, 0x0f, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65,
+	0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x32, 0xf8, 0x01, 0x0a, 0x0c, 0x42, 0x6c,
+	0x6f, 0x63, 0x6b, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4b, 0x0a, 0x0a, 0x46, 0x65,
+	0x74, 0x63, 0x68, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x12, 0x1c, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b,
+	0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x46, 0x65, 0x74, 0x63, 0x68, 0x42, 0x6c,
+	0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x1a, 0x1d, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x46, 0x65, 0x74, 0x63, 0x68, 0x42, 0x6c, 0x6f, 0x63,
+	0x6b, 0x52, 0x65, 0x73, 0x70, 0x22, 0x00, 0x12, 0x4b, 0x0a, 0x0a, 0x53, 0x74, 0x6f, 0x72, 0x65,
+	0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x12, 0x1c, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65,
+	0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
+	0x52, 0x65, 0x71, 0x1a, 0x1d, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76,
+	0x69, 0x63, 0x65, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65,
+	0x73, 0x70, 0x22, 0x00, 0x12, 0x4e, 0x0a, 0x0b, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x42, 0x6c,
+	0x6f, 0x63, 0x6b, 0x12, 0x1d, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76,
+	0x69, 0x63, 0x65, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52,
+	0x65, 0x71, 0x1a, 0x1e, 0x2e, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69,
+	0x63, 0x65, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65,
+	0x73, 0x70, 0x22, 0x00, 0x42, 0x11, 0x5a, 0x0f, 0x2e, 0x2f, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x5f,
+	0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -365,27 +417,30 @@ func file_block_service_proto_rawDescGZIP() []byte {
 	return file_block_service_proto_rawDescData
 }
 
-var file_block_service_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_block_service_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_block_service_proto_goTypes = []interface{}{
-	(*GetChunkReq)(nil),     // 0: block_service.GetChunkReq
-	(*GetChunkResp)(nil),    // 1: block_service.GetChunkResp
-	(*SaveChunkReq)(nil),    // 2: block_service.SaveChunkReq
-	(*SaveChunkResp)(nil),   // 3: block_service.SaveChunkResp
-	(*RemoveChunkReq)(nil),  // 4: block_service.RemoveChunkReq
-	(*RemoveChunkResp)(nil), // 5: block_service.RemoveChunkResp
+	(*BlockEntry)(nil),      // 0: block_service.BlockEntry
+	(*FetchBlockReq)(nil),   // 1: block_service.FetchBlockReq
+	(*FetchBlockResp)(nil),  // 2: block_service.FetchBlockResp
+	(*StoreBlockReq)(nil),   // 3: block_service.StoreBlockReq
+	(*StoreBlockResp)(nil),  // 4: block_service.StoreBlockResp
+	(*DeleteBlockReq)(nil),  // 5: block_service.DeleteBlockReq
+	(*DeleteBlockResp)(nil), // 6: block_service.DeleteBlockResp
 }
 var file_block_service_proto_depIdxs = []int32{
-	0, // 0: block_service.BlockService.GetChunk:input_type -> block_service.GetChunkReq
-	2, // 1: block_service.BlockService.SaveChunk:input_type -> block_service.SaveChunkReq
-	4, // 2: block_service.BlockService.RemoveChunk:input_type -> block_service.RemoveChunkReq
-	1, // 3: block_service.BlockService.GetChunk:output_type -> block_service.GetChunkResp
-	3, // 4: block_service.BlockService.SaveChunk:output_type -> block_service.SaveChunkResp
-	5, // 5: block_service.BlockService.RemoveChunk:output_type -> block_service.RemoveChunkResp
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: block_service.FetchBlockResp.entry:type_name -> block_service.BlockEntry
+	0, // 1: block_service.StoreBlockReq.entry:type_name -> block_service.BlockEntry
+	1, // 2: block_service.BlockService.FetchBlock:input_type -> block_service.FetchBlockReq
+	3, // 3: block_service.BlockService.StoreBlock:input_type -> block_service.StoreBlockReq
+	5, // 4: block_service.BlockService.DeleteBlock:input_type -> block_service.DeleteBlockReq
+	2, // 5: block_service.BlockService.FetchBlock:output_type -> block_service.FetchBlockResp
+	4, // 6: block_service.BlockService.StoreBlock:output_type -> block_service.StoreBlockResp
+	6, // 7: block_service.BlockService.DeleteBlock:output_type -> block_service.DeleteBlockResp
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_block_service_proto_init() }
@@ -395,7 +450,7 @@ func file_block_service_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_block_service_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetChunkReq); i {
+			switch v := v.(*BlockEntry); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -407,7 +462,7 @@ func file_block_service_proto_init() {
 			}
 		}
 		file_block_service_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetChunkResp); i {
+			switch v := v.(*FetchBlockReq); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -419,7 +474,7 @@ func file_block_service_proto_init() {
 			}
 		}
 		file_block_service_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SaveChunkReq); i {
+			switch v := v.(*FetchBlockResp); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -431,7 +486,7 @@ func file_block_service_proto_init() {
 			}
 		}
 		file_block_service_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SaveChunkResp); i {
+			switch v := v.(*StoreBlockReq); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -443,7 +498,7 @@ func file_block_service_proto_init() {
 			}
 		}
 		file_block_service_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RemoveChunkReq); i {
+			switch v := v.(*StoreBlockResp); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -455,7 +510,19 @@ func file_block_service_proto_init() {
 			}
 		}
 		file_block_service_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RemoveChunkResp); i {
+			switch v := v.(*DeleteBlockReq); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_block_service_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DeleteBlockResp); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -473,7 +540,7 @@ func file_block_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_block_service_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

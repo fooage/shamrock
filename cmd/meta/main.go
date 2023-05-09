@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	http_api "github.com/fooage/shamrock/api/meta/http"
+	rpc_api "github.com/fooage/shamrock/api/meta/rpc"
 	"github.com/fooage/shamrock/core/kvstore"
 	"github.com/fooage/shamrock/core/raft"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -51,5 +52,6 @@ func main() {
 
 	// the key-value http handler will propose updates to raft
 	local, _ := url.Parse(strings.Split(*peers, ",")[*self-1])
-	http_api.ServeHttp(logger, *local, kvStorage, raftCluster)
+	go http_api.ServeHttp(logger, *local, kvStorage, raftCluster)
+	rpc_api.ServeRPC(logger, *local, kvStorage, raftCluster)
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fooage/shamrock/core/kvstore"
 	"github.com/fooage/shamrock/core/raft"
+	"github.com/fooage/shamrock/proto/proto_gen/meta_service"
 	"github.com/gin-gonic/gin"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.uber.org/zap"
@@ -76,11 +77,11 @@ func (h *handler) ConfChangeRemoveNode(c *gin.Context) {
 }
 
 func (h *handler) QueryObjectMeta(c *gin.Context) {
-	name := c.Param("name")
-	key := generateObjectMetaKey(name)
+	uniqueKey := c.Param("unique_key")
+	key := kvstore.GenerateObjectMetaKey(uniqueKey)
 
 	if value, ok := h.kvStorage.Lookup(key); ok {
-		var data ObjectMeta
+		var data meta_service.ObjectMeta
 		err := json.Unmarshal([]byte(value), &data)
 		if err != nil {
 			h.logger.Error("object meta json unmarshal failed", zap.Error(err))
@@ -94,9 +95,9 @@ func (h *handler) QueryObjectMeta(c *gin.Context) {
 }
 
 func (h *handler) UpdateObjectMeta(c *gin.Context) {
-	name := c.Param("name")
-	key := generateObjectMetaKey(name)
-	data := ObjectMeta{}
+	uniqueKey := c.Param("unique_key")
+	key := kvstore.GenerateObjectMetaKey(uniqueKey)
+	data := meta_service.ObjectMeta{}
 	err := c.BindJSON(&data)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, nil)
@@ -121,11 +122,11 @@ func (h *handler) UpdateObjectMeta(c *gin.Context) {
 }
 
 func (h *handler) QueryChunkMeta(c *gin.Context) {
-	hash := c.Param("hash")
-	key := generateChunkMetaKey(hash)
+	uniqueKey := c.Param("unique_key")
+	key := kvstore.GenerateChunkMetaKey(uniqueKey)
 
 	if value, ok := h.kvStorage.Lookup(key); ok {
-		var data ChunkMeta
+		var data meta_service.ChunkMeta
 		err := json.Unmarshal([]byte(value), &data)
 		if err != nil {
 			h.logger.Error("chunk meta json unmarshal failed", zap.Error(err))
@@ -139,9 +140,9 @@ func (h *handler) QueryChunkMeta(c *gin.Context) {
 }
 
 func (h *handler) UpdateChunkMeta(c *gin.Context) {
-	name := c.Param("hash")
-	key := generateChunkMetaKey(name)
-	data := ChunkMeta{}
+	uniqueKey := c.Param("unique_key")
+	key := kvstore.GenerateChunkMetaKey(uniqueKey)
+	data := meta_service.ChunkMeta{}
 	err := c.BindJSON(&data)
 	if err != nil {
 		h.logger.Error("bind json param error", zap.Error(err))
