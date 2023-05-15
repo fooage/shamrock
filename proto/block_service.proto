@@ -33,14 +33,10 @@ message StoreBlockReq {
   BlockEntry entry = 1;
 }
 
-message StoreBlockResp {
-  // TODO: Set synchronous callbacks for the propose behavior.
-}
+message StoreBlockResp {}
 
 message DeleteBlockReq {
   string unique_key = 1;
 }
 
-message DeleteBlockResp {
-  // TODO: Set synchronous callbacks for the propose behavior.
-}
+message DeleteBlockResp {}

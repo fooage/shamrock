@@ -43,9 +43,7 @@ message UpdateObjectStatusReq {
   EntryStatus status = 2;
 }
 
-message UpdateObjectStatusResp {
-  // TODO: Set synchronous callbacks for the propose behavior.
-}
+message UpdateObjectStatusResp {}
 
 // NOTE: The naming here is different from the block storage service because it needs
 // to understand the concept of object chunk.
@@ -63,9 +61,7 @@ message UpdateChunkStatusReq {
   EntryStatus status = 2;
 }
 
-message UpdateChunkStatusResp {
-  // TODO: Set synchronous callbacks for the propose behavior.
-}
+message UpdateChunkStatusResp {}
 
 // Before uploading a new object, it need to register and initialize the
 // metadata, after which a unique key and a constructed route table are returned.

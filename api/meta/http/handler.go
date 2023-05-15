@@ -116,9 +116,9 @@ func (h *handler) UpdateObjectMeta(c *gin.Context) {
 		return
 	}
 
-	// Not waiting for ack from raft. Binary is not yet committed so a
-	// subsequent GET on the key may return old value.
-	c.JSON(http.StatusAccepted, nil)
+	// At present, submitting data is a reliable synchronization process, and it
+	// can return success only if it is accepted by more than half of the nodes.
+	c.JSON(http.StatusOK, nil)
 }
 
 func (h *handler) QueryChunkMeta(c *gin.Context) {
@@ -162,9 +162,9 @@ func (h *handler) UpdateChunkMeta(c *gin.Context) {
 		return
 	}
 
-	// Not waiting for ack from raft. Binary is not yet committed so a
-	// subsequent GET on the key may return old value.
-	c.JSON(http.StatusAccepted, nil)
+	// At present, submitting data is a reliable synchronization process, and it
+	// can return success only if it is accepted by more than half of the nodes.
+	c.JSON(http.StatusOK, nil)
 }
 
 func (h *handler) QueryServiceHealth(c *gin.Context) {
