@@ -70,3 +70,8 @@ func (h *handler) ConfChangeRemoveNode(c *gin.Context) {
 	}
 	c.JSON(http.StatusAccepted, nil)
 }
+
+func (h *handler) QueryServiceHealth(c *gin.Context) {
+	// TODO: After that, it can make some reports on the service status.
+	c.JSON(http.StatusOK, nil)
+}

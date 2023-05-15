@@ -166,3 +166,8 @@ func (h *handler) UpdateChunkMeta(c *gin.Context) {
 	// subsequent GET on the key may return old value.
 	c.JSON(http.StatusAccepted, nil)
 }
+
+func (h *handler) QueryServiceHealth(c *gin.Context) {
+	// TODO: After that, it can make some reports on the service status.
+	c.JSON(http.StatusOK, nil)
+}

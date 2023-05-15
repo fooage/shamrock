@@ -1,6 +1,7 @@
 package http_api
 
 import (
+	"context"
 	"net/url"
 
 	"github.com/fooage/shamrock/core/raft"
@@ -9,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func ServeHttp(logger *zap.Logger, local url.URL, raftCluster raft.Cluster) {
+func ServeHttp(cancelFunc context.CancelFunc, logger *zap.Logger, local url.URL, raftCluster raft.Cluster) {
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
 	handler := generateHandler(logger, raftCluster)
@@ -17,6 +18,7 @@ func ServeHttp(logger *zap.Logger, local url.URL, raftCluster raft.Cluster) {
 		if err := router.Run(utils.AddressOffsetHTTP(local)); err != nil {
 			logger.Panic("http interface router run error", zap.Error(err))
 		}
+		defer cancelFunc()
 	}()
 
 	// related to cluster configuration changes
@@ -24,5 +26,11 @@ func ServeHttp(logger *zap.Logger, local url.URL, raftCluster raft.Cluster) {
 	{
 		cluster.POST("/:id", handler.ConfChangeAddNode)
 		cluster.DELETE("/:id", handler.ConfChangeRemoveNode)
+	}
+
+	// service running status interface can be explored and queried
+	service := router.Group("/service")
+	{
+		service.GET("/health", handler.QueryServiceHealth)
 	}
 }

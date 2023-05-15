@@ -155,7 +155,8 @@ func (rf *raftServer) startService(initPeers []string, isJoin bool) {
 func (rf *raftServer) serveTransport() {
 	defer close(rf.httpDoneCh)
 	self := rf.cluster.peers[types.ID(rf.cluster.self)]
-	listener, err := newStoppableListener(rf.logger, self.urls[0].Host, rf.httpStopCh)
+	address := fmt.Sprintf("0.0.0.0:%s", self.urls[0].Port())
+	listener, err := newStoppableListener(rf.logger, address, rf.httpStopCh)
 	if err != nil {
 		rf.logger.Panic("create raft listener error", zap.String("host", self.urls[0].Host), zap.Error(err))
 	}

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -9,6 +11,7 @@ import (
 	rpc_api "github.com/fooage/shamrock/api/block/rpc"
 	"github.com/fooage/shamrock/core/filestore"
 	"github.com/fooage/shamrock/core/raft"
+	"github.com/fooage/shamrock/service"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.uber.org/zap"
 )
@@ -19,22 +22,28 @@ import (
 // object and the meaning of chunk in the whole object.
 
 var (
-	group *int
-	self  *int
-	peers *string
-	join  *bool
+	local     *string
+	group     *int
+	self      *int
+	peers     *string
+	join      *bool
+	discovery *string
 )
 
 // init load arguments in command line
 func init() {
+	local = flag.String("local", "127.0.0.1:12360", "the instance local address")
 	group = flag.Int("group", 1, "group number for consensus")
 	self = flag.Int("self", 1, "node number in the cluster")
-	peers = flag.String("peers", "http://127.0.0.1:12379", "comma separated cluster peers")
+	peers = flag.String("peers", "http://127.0.0.1:12360", "comma separated cluster peers")
 	join = flag.Bool("join", false, "whether join an existing cluster")
+	discovery = flag.String("discovery", "127.0.0.1:8500", "separated service discovery")
 	flag.Parse()
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// init two channels which connect layers
 	proposeCh := make(chan string)
 	defer close(proposeCh)
@@ -51,7 +60,15 @@ func main() {
 	fileStorage.Connect(raftCluster)
 
 	// start block service's rpc apis
-	local, _ := url.Parse(strings.Split(*peers, ",")[*self-1])
-	go http_api.ServeHttp(logger, *local, raftCluster)
-	rpc_api.ServeRPC(logger, *local, fileStorage, raftCluster)
+	local, _ := url.Parse(fmt.Sprintf("http://%s", *local))
+	go http_api.ServeHttp(cancel, logger, *local, raftCluster)
+	go rpc_api.ServeRPC(cancel, logger, *local, fileStorage, raftCluster)
+
+	// register service to cluster service discovery
+	local, _ = url.Parse(strings.Split(*peers, ",")[*self-1])
+	discovery := service.InitServiceDiscovery(logger, "consul", strings.Split(*discovery, ","))
+	discovery.Register("shamrock-block", *local)
+	defer discovery.Deregister("shamrock-block")
+
+	<-ctx.Done()
 }

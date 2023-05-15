@@ -1,6 +1,7 @@
 package rpc_api
 
 import (
+	"context"
 	"net"
 	"net/url"
 
@@ -14,7 +15,7 @@ import (
 
 var server = grpc.NewServer()
 
-func ServeRPC(logger *zap.Logger, local url.URL, fileStorage filestore.FileStorage, raftCluster raft.Cluster) {
+func ServeRPC(cancelFunc context.CancelFunc, logger *zap.Logger, local url.URL, fileStorage filestore.FileStorage, raftCluster raft.Cluster) {
 	listener, err := net.Listen("tcp", utils.AddressOffsetRPC(local))
 	if err != nil {
 		logger.Panic("grpc listener init failed", zap.Error(err))
@@ -23,6 +24,7 @@ func ServeRPC(logger *zap.Logger, local url.URL, fileStorage filestore.FileStora
 		if err := server.Serve(listener); err != nil {
 			logger.Panic("grpc interface server run error", zap.Error(err))
 		}
+		defer cancelFunc()
 	}()
 
 	// Register the relevant interface functions of the Block service.
