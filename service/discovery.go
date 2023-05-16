@@ -3,12 +3,14 @@ package service
 import (
 	"net/url"
 
+	"go.etcd.io/etcd/client/pkg/v3/types"
 	"go.uber.org/zap"
 )
 
 type Discovery interface {
 	Register(name string, url url.URL)
 	Deregister(name string)
+	Instances(name string) types.URLs
 }
 
 var DiscoveryClient Discovery

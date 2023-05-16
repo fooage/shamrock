@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/fooage/shamrock/utils"
-
 	"github.com/hashicorp/consul/api"
+	"go.etcd.io/etcd/client/pkg/v3/types"
 	"go.uber.org/zap"
 )
 
@@ -35,7 +35,7 @@ func initConsulDiscovery(logger *zap.Logger, target string) *consulClient {
 
 // Register is service discovery registration implemented by Consul.
 func (c *consulClient) Register(name string, url url.URL) {
-	host, portStr, _ := net.SplitHostPort(utils.AddressOffsetHTTP(url))
+	host, portStr, _ := net.SplitHostPort(url.Host)
 	port, _ := strconv.Atoi(portStr)
 	registration := new(api.AgentServiceRegistration)
 	registration.Name = name
@@ -46,7 +46,7 @@ func (c *consulClient) Register(name string, url url.URL) {
 	// transform (AddressOffsetHTTP) is done on it.
 	registration.Check = &api.AgentServiceCheck{
 		Interval:                       "10s",
-		HTTP:                           fmt.Sprintf("http://%s:%d/service/health", host, port),
+		HTTP:                           fmt.Sprintf("http://%s/service/health", utils.AddressOffsetHTTP(url)),
 		Timeout:                        "5s",
 		DeregisterCriticalServiceAfter: "30s",
 	}
@@ -64,4 +64,22 @@ func (c *consulClient) Deregister(name string) {
 		c.logger.Panic("service could not be deregister", zap.Error(err))
 		return
 	}
+}
+
+// Instances find and return the service instance URLs for all matching name.
+func (c *consulClient) Instances(name string) types.URLs {
+	matched, _, err := c.client.Catalog().Service(name, "", nil)
+	if err != nil {
+		c.logger.Error("discovery service error", zap.Error(err))
+		return nil
+	}
+	instances := make(types.URLs, 0, len(matched))
+	for _, instance := range matched {
+		url, err := url.Parse(fmt.Sprintf("http://%s:%d", instance.ServiceAddress, instance.ServicePort))
+		if err != nil {
+			continue
+		}
+		instances = append(instances, *url)
+	}
+	return instances
 }
