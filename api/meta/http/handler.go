@@ -78,9 +78,7 @@ func (h *handler) ConfChangeRemoveNode(c *gin.Context) {
 
 func (h *handler) QueryObjectMeta(c *gin.Context) {
 	uniqueKey := c.Param("unique_key")
-	key := kvstore.GenerateObjectKey(uniqueKey)
-
-	if value, ok := h.kvStorage.Lookup(key); ok {
+	if value, ok := h.kvStorage.Lookup(uniqueKey); ok {
 		var data meta_service.ObjectMeta
 		err := json.Unmarshal([]byte(value), &data)
 		if err != nil {
@@ -96,7 +94,6 @@ func (h *handler) QueryObjectMeta(c *gin.Context) {
 
 func (h *handler) UpdateObjectMeta(c *gin.Context) {
 	uniqueKey := c.Param("unique_key")
-	key := kvstore.GenerateObjectKey(uniqueKey)
 	data := meta_service.ObjectMeta{}
 	err := c.BindJSON(&data)
 	if err != nil {
@@ -110,8 +107,8 @@ func (h *handler) UpdateObjectMeta(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}
-	if err = h.kvStorage.Propose(key, string(value)); err != nil {
-		h.logger.Error("propose raft layer error", zap.Error(err), zap.String("key", key))
+	if err = h.kvStorage.Propose(uniqueKey, string(value)); err != nil {
+		h.logger.Error("propose raft layer error", zap.Error(err), zap.String("key", uniqueKey))
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}
@@ -123,9 +120,7 @@ func (h *handler) UpdateObjectMeta(c *gin.Context) {
 
 func (h *handler) QueryChunkMeta(c *gin.Context) {
 	uniqueKey := c.Param("unique_key")
-	key := kvstore.GenerateChunkKey(uniqueKey)
-
-	if value, ok := h.kvStorage.Lookup(key); ok {
+	if value, ok := h.kvStorage.Lookup(uniqueKey); ok {
 		var data meta_service.ChunkMeta
 		err := json.Unmarshal([]byte(value), &data)
 		if err != nil {
@@ -141,7 +136,6 @@ func (h *handler) QueryChunkMeta(c *gin.Context) {
 
 func (h *handler) UpdateChunkMeta(c *gin.Context) {
 	uniqueKey := c.Param("unique_key")
-	key := kvstore.GenerateChunkKey(uniqueKey)
 	data := meta_service.ChunkMeta{}
 	err := c.BindJSON(&data)
 	if err != nil {
@@ -156,8 +150,8 @@ func (h *handler) UpdateChunkMeta(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}
-	if err = h.kvStorage.Propose(key, string(value)); err != nil {
-		h.logger.Error("propose raft layer error", zap.Error(err), zap.String("key", key))
+	if err = h.kvStorage.Propose(uniqueKey, string(value)); err != nil {
+		h.logger.Error("propose raft layer error", zap.Error(err), zap.String("key", uniqueKey))
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}

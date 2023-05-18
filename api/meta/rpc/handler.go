@@ -32,8 +32,7 @@ func generateHandler(logger *zap.Logger, kvStorage kvstore.KVStorage, raftCluste
 }
 
 func (h *handler) QueryObjectMeta(ctx context.Context, req *meta_service.QueryObjectMetaReq) (*meta_service.QueryObjectMetaResp, error) {
-	key := kvstore.GenerateObjectKey(req.UniqueKey)
-	value, ok := h.kvStorage.Lookup(key)
+	value, ok := h.kvStorage.Lookup(req.UniqueKey)
 	if ok {
 		meta := meta_service.ObjectMeta{}
 		err := json.Unmarshal([]byte(value), &meta)
@@ -49,8 +48,7 @@ func (h *handler) QueryObjectMeta(ctx context.Context, req *meta_service.QueryOb
 }
 
 func (h *handler) UpdateObjectStatus(ctx context.Context, req *meta_service.UpdateObjectStatusReq) (*meta_service.UpdateObjectStatusResp, error) {
-	key := kvstore.GenerateObjectKey(req.UniqueKey)
-	value, ok := h.kvStorage.Lookup(key)
+	value, ok := h.kvStorage.Lookup(req.UniqueKey)
 	if ok {
 		meta := meta_service.ObjectMeta{}
 		err := json.Unmarshal([]byte(value), &meta)
@@ -60,7 +58,7 @@ func (h *handler) UpdateObjectStatus(ctx context.Context, req *meta_service.Upda
 		}
 		meta.Status = req.Status
 		value, err := json.Marshal(meta)
-		err = h.kvStorage.Propose(key, string(value))
+		err = h.kvStorage.Propose(req.UniqueKey, string(value))
 		if err != nil {
 			h.logger.Error("update object status error", zap.Error(err))
 			return nil, err
@@ -77,8 +75,7 @@ func (h *handler) QueryChunkMeta(ctx context.Context, req *meta_service.QueryChu
 
 	result := make(map[string]*meta_service.ChunkMeta, len(req.UniqueKeys))
 	for _, uniqueKey := range req.UniqueKeys {
-		key := kvstore.GenerateChunkKey(uniqueKey)
-		value, ok := h.kvStorage.Lookup(key)
+		value, ok := h.kvStorage.Lookup(uniqueKey)
 		if !ok {
 			h.logger.Info("query chunk not found", zap.String("key", uniqueKey))
 			continue
@@ -99,8 +96,7 @@ func (h *handler) UpdateChunkStatus(ctx context.Context, req *meta_service.Updat
 	}
 
 	for _, uniqueKey := range req.UniqueKeys {
-		key := kvstore.GenerateChunkKey(uniqueKey)
-		data, ok := h.kvStorage.Lookup(key)
+		data, ok := h.kvStorage.Lookup(uniqueKey)
 		if !ok {
 			h.logger.Info("query chunk not found", zap.String("key", uniqueKey))
 			continue
@@ -113,7 +109,7 @@ func (h *handler) UpdateChunkStatus(ctx context.Context, req *meta_service.Updat
 		}
 		meta.Status = req.Status
 		value, err := json.Marshal(meta)
-		err = h.kvStorage.Propose(key, string(value))
+		err = h.kvStorage.Propose(uniqueKey, string(value))
 		if err != nil {
 			h.logger.Error("update object status error", zap.Error(err))
 			return nil, err
