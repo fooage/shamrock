@@ -80,11 +80,16 @@ func (h *handler) QueryServiceHealth(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, nil)
 		return
 	}
+	var isLeader bool
+	if leaderAddress, ok := h.raftCluster.Leader(); ok {
+		isLeader = leaderAddress[0] == h.raftCluster.Current()[0]
+	}
 	c.JSON(http.StatusOK, block_service.HealthReport{
 		Address:      h.raftCluster.Current()[0].String(),
 		StoreGroup:   int64(h.raftCluster.Group()),
 		StoreNode:    int64(h.raftCluster.Self()),
 		Capacity:     int64(capacity),
 		CapacityUsed: int64(capacityUsed),
+		IsLeader:     isLeader,
 	})
 }

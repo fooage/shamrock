@@ -6,9 +6,9 @@ import (
 	"math"
 	"os"
 	"syscall"
-)
 
-const DefaultBlockSize = 16384
+	"github.com/fooage/shamrock/core/filestore"
+)
 
 // PathExist determine whether a file or folder exists in the specified path.
 func PathExist(path string) bool {
@@ -49,7 +49,7 @@ func DiskUsage(path string) (uint64, uint64, error) {
 func BufferReadFile(file *os.File) ([]byte, error) {
 	reader := bufio.NewReader(file)
 	var (
-		data = make([]byte, 0, DefaultBlockSize)
+		data = make([]byte, 0, filestore.DefaultBlockSize)
 		buf  = make([]byte, 2048)
 	)
 	for {

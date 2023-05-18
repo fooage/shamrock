@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/fooage/shamrock/core/filestore"
 	"github.com/fooage/shamrock/core/kvstore"
 	"github.com/fooage/shamrock/core/raft"
 	"github.com/fooage/shamrock/core/scheduler"
 	"github.com/fooage/shamrock/proto/proto_gen/meta_service"
-	"github.com/fooage/shamrock/utils"
 	"go.uber.org/zap"
 )
 
@@ -129,7 +129,7 @@ func (h *handler) RegisterObject(ctx context.Context, req *meta_service.Register
 	// Generate meta information for each chunk and dispatch storage group.
 	// Finally complete the registration and return of object meta information.
 	for index, hash := range req.HashList {
-		storeGroup, err := h.blockScheduler.Dispatch(utils.DefaultBlockSize)
+		storeGroup, err := h.blockScheduler.Dispatch(filestore.DefaultBlockSize)
 		if err != nil {
 			h.logger.Error("scheduler dispatch chunk error", zap.Error(err), zap.String("file", req.Name))
 			return nil, err
@@ -158,4 +158,15 @@ func (h *handler) RegisterObject(ctx context.Context, req *meta_service.Register
 		return nil, err
 	}
 	return &meta_service.RegisterObjectResp{Meta: &object}, nil
+}
+
+func (h *handler) QueryStorageAddress(ctx context.Context, req *meta_service.QueryStorageAddressReq) (*meta_service.QueryStorageAddressResp, error) {
+	addressList, err := h.blockScheduler.Proxy(req.StoreGroup, req.FromMaster)
+	if err != nil {
+		h.logger.Error("scheduler query node error", zap.Error(err))
+		return nil, err
+	}
+	return &meta_service.QueryStorageAddressResp{
+		AddressList: addressList,
+	}, nil
 }

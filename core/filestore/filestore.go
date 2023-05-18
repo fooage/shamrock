@@ -28,6 +28,8 @@ type FileStorage interface {
 	Connect(cluster raft.Cluster)
 }
 
+const DefaultBlockSize = 16384
+
 // The file store relies heavily on disk for storage and its role is to store
 // chunks of object, with the possibility of adding an in-memory cache in the future.
 

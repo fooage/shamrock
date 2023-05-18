@@ -13,6 +13,8 @@ service MetaService {
   rpc UpdateChunkStatus(UpdateChunkStatusReq) returns (UpdateChunkStatusResp) {}
   // The registration object completes the route table construction.
   rpc RegisterObject(RegisterObjectReq) returns (RegisterObjectResp) {}
+  // Proxy the block service node address which matched parameters.
+  rpc QueryStorageAddress(QueryStorageAddressReq) returns (QueryStorageAddressResp) {}
 }
 
 message ObjectMeta {
@@ -84,4 +86,13 @@ enum EntryStatus {
   Available = 2;
   // Storage entity has been deleted and will be purged periodically.
   Deleted = 3;
+}
+
+message QueryStorageAddressReq {
+  int64 store_group = 1;
+  bool from_master = 2;
+}
+
+message QueryStorageAddressResp {
+  repeated string address_list = 1;
 }

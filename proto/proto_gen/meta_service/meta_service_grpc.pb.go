@@ -30,6 +30,8 @@ type MetaServiceClient interface {
 	UpdateChunkStatus(ctx context.Context, in *UpdateChunkStatusReq, opts ...grpc.CallOption) (*UpdateChunkStatusResp, error)
 	// The registration object completes the route table construction.
 	RegisterObject(ctx context.Context, in *RegisterObjectReq, opts ...grpc.CallOption) (*RegisterObjectResp, error)
+	// Proxy the block service node address which matched parameters.
+	QueryStorageAddress(ctx context.Context, in *QueryStorageAddressReq, opts ...grpc.CallOption) (*QueryStorageAddressResp, error)
 }
 
 type metaServiceClient struct {
@@ -85,6 +87,15 @@ func (c *metaServiceClient) RegisterObject(ctx context.Context, in *RegisterObje
 	return out, nil
 }
 
+func (c *metaServiceClient) QueryStorageAddress(ctx context.Context, in *QueryStorageAddressReq, opts ...grpc.CallOption) (*QueryStorageAddressResp, error) {
+	out := new(QueryStorageAddressResp)
+	err := c.cc.Invoke(ctx, "/meta_service.MetaService/QueryStorageAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MetaServiceServer is the server API for MetaService service.
 // All implementations must embed UnimplementedMetaServiceServer
 // for forward compatibility
@@ -97,6 +108,8 @@ type MetaServiceServer interface {
 	UpdateChunkStatus(context.Context, *UpdateChunkStatusReq) (*UpdateChunkStatusResp, error)
 	// The registration object completes the route table construction.
 	RegisterObject(context.Context, *RegisterObjectReq) (*RegisterObjectResp, error)
+	// Proxy the block service node address which matched parameters.
+	QueryStorageAddress(context.Context, *QueryStorageAddressReq) (*QueryStorageAddressResp, error)
 	mustEmbedUnimplementedMetaServiceServer()
 }
 
@@ -118,6 +131,9 @@ func (UnimplementedMetaServiceServer) UpdateChunkStatus(context.Context, *Update
 }
 func (UnimplementedMetaServiceServer) RegisterObject(context.Context, *RegisterObjectReq) (*RegisterObjectResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterObject not implemented")
+}
+func (UnimplementedMetaServiceServer) QueryStorageAddress(context.Context, *QueryStorageAddressReq) (*QueryStorageAddressResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method QueryStorageAddress not implemented")
 }
 func (UnimplementedMetaServiceServer) mustEmbedUnimplementedMetaServiceServer() {}
 
@@ -222,6 +238,24 @@ func _MetaService_RegisterObject_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetaService_QueryStorageAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryStorageAddressReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetaServiceServer).QueryStorageAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/meta_service.MetaService/QueryStorageAddress",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetaServiceServer).QueryStorageAddress(ctx, req.(*QueryStorageAddressReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MetaService_ServiceDesc is the grpc.ServiceDesc for MetaService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -248,6 +282,10 @@ var MetaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RegisterObject",
 			Handler:    _MetaService_RegisterObject_Handler,
+		},
+		{
+			MethodName: "QueryStorageAddress",
+			Handler:    _MetaService_QueryStorageAddress_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -19,7 +19,10 @@ import (
 
 type Scheduler interface {
 	// Dispatch function is to find the right storage grouping for storage space needs.
-	Dispatch(needSpace int64) (int64, error)
+	Dispatch(size int64) (int64, error)
+	// The Proxy function returns the address of the block storage instance that
+	// meets the matching parameter.
+	Proxy(group int64, fromMaster bool) ([]string, error)
 }
 
 type storageScheduler struct {
@@ -90,7 +93,7 @@ func (ds *storageScheduler) requestHealthStatus(url url.URL) (*block_service.Hea
 	return &report, nil
 }
 
-func (ds *storageScheduler) Dispatch(needSpace int64) (int64, error) {
+func (ds *storageScheduler) Dispatch(size int64) (int64, error) {
 	var suitableGroup int64
 	var biggestSpace float64
 	ds.mutex.RLock()
@@ -104,7 +107,7 @@ func (ds *storageScheduler) Dispatch(needSpace int64) (int64, error) {
 		for _, node := range group {
 			groupSpace = math.Min(groupSpace, groupLimit-float64(node.CapacityUsed))
 		}
-		if groupSpace > biggestSpace && groupSpace > float64(needSpace) {
+		if groupSpace > biggestSpace && groupSpace > float64(size) {
 			suitableGroup = index
 			biggestSpace = groupSpace
 		}
@@ -114,4 +117,20 @@ func (ds *storageScheduler) Dispatch(needSpace int64) (int64, error) {
 		return 0, errors.New("could not find suitable group")
 	}
 	return suitableGroup, nil
+}
+
+func (ds *storageScheduler) Proxy(group int64, fromMaster bool) ([]string, error) {
+	health, ok := ds.healthStatus[group]
+	if !ok {
+		return nil, errors.New("matched node not found")
+	}
+	matched := make([]string, 0, len(health))
+	for _, instance := range health {
+		// If the leader node is obtained, the slave node is filtered.
+		if fromMaster && !instance.IsLeader {
+			continue
+		}
+		matched = append(matched, instance.Address)
+	}
+	return matched, nil
 }
