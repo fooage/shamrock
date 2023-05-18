@@ -55,6 +55,7 @@ func main() {
 	))
 
 	// initialize the storage and consistency layers
+	discovery := service.InitServiceDiscovery(logger, "consul", strings.Split(*discovery, ","))
 	fileStorage := filestore.NewFileStoreServer(logger)
 	raftCluster := raft.NewRaftServer(logger, *self, *group, strings.Split(*peers, ","), *join, proposeCh, confChangeCh, fileStorage.SnapshotFetch)
 	fileStorage.Connect(raftCluster)
@@ -66,7 +67,6 @@ func main() {
 
 	// register service to cluster service discovery
 	local, _ = url.Parse(strings.Split(*peers, ",")[*self-1])
-	discovery := service.InitServiceDiscovery(logger, "consul", strings.Split(*discovery, ","))
 	discovery.Register("shamrock-block", *local)
 	defer discovery.Deregister("shamrock-block")
 

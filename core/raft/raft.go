@@ -74,8 +74,8 @@ func NewRaftServer(logger *zap.Logger, self int, group int, peers []string, isJo
 		commitCh:        make(chan *Commit),
 		errorCh:         make(chan error),
 		logger:          logger,
-		walPath:         fmt.Sprintf("raft-%d-%d", group, self),
-		snapPath:        fmt.Sprintf("raft-%d-%d-snap", group, self),
+		walPath:         fmt.Sprintf("./storage/raft-%d-%d", group, self),
+		snapPath:        fmt.Sprintf("./storage/raft-%d-%d-snap", group, self),
 		snapshotFetch:   snapshotFetch,
 		appStopCh:       make(chan struct{}),
 		httpStopCh:      make(chan struct{}),
@@ -91,7 +91,7 @@ func NewRaftServer(logger *zap.Logger, self int, group int, peers []string, isJo
 // startService as a goroutine to running raft state machine.
 func (rf *raftServer) startService(initPeers []string, isJoin bool) {
 	if !utils.PathExist(rf.snapPath) {
-		if err := os.Mkdir(rf.snapPath, 0750); err != nil {
+		if err := os.MkdirAll(rf.snapPath, 0750); err != nil {
 			rf.logger.Panic("create snapshot folder error", zap.String("path", rf.snapPath), zap.Error(err))
 		}
 	}

@@ -120,9 +120,9 @@ func (f *filestoreServer) SnapshotFetch() ([]byte, error) {
 }
 
 func (f *filestoreServer) Connect(cluster raft.Cluster) {
-	f.storePath = fmt.Sprintf("store-%s-%s", cluster.Group(), cluster.Self())
+	f.storePath = fmt.Sprintf("./storage/file-%s-%s", cluster.Group(), cluster.Self())
 	if !utils.PathExist(f.storePath) {
-		if err := os.Mkdir(f.storePath, 0750); err != nil {
+		if err := os.MkdirAll(f.storePath, 0750); err != nil {
 			f.logger.Panic("create store folder error", zap.String("path", f.storePath), zap.Error(err))
 		}
 	}

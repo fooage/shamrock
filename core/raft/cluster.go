@@ -21,6 +21,7 @@ type Cluster interface {
 	ConfChange() chan<- raftpb.ConfChange
 	Self() types.ID
 	Group() types.ID
+	Current() types.URLs
 	Leader() (types.URLs, bool)
 }
 
@@ -42,6 +43,10 @@ func (rf *raftServer) Propose() chan<- string {
 
 func (rf *raftServer) ConfChange() chan<- raftpb.ConfChange {
 	return rf.confChangeCh
+}
+
+func (rf *raftServer) Current() types.URLs {
+	return rf.cluster.peers[rf.Self()].urls
 }
 
 func (rf *raftServer) Leader() (types.URLs, bool) {

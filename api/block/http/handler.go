@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/fooage/shamrock/core/raft"
+	"github.com/fooage/shamrock/proto/proto_gen/block_service"
+	"github.com/fooage/shamrock/utils"
 	"github.com/gin-gonic/gin"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.uber.org/zap"
@@ -72,6 +74,17 @@ func (h *handler) ConfChangeRemoveNode(c *gin.Context) {
 }
 
 func (h *handler) QueryServiceHealth(c *gin.Context) {
-	// TODO: After that, it can make some reports on the service status.
-	c.JSON(http.StatusOK, nil)
+	capacityUsed, capacity, err := utils.DiskUsage("/")
+	if err != nil {
+		h.logger.Error("disk usage get failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+	c.JSON(http.StatusOK, block_service.HealthReport{
+		Address:      h.raftCluster.Current()[0].String(),
+		StoreGroup:   int64(h.raftCluster.Group()),
+		StoreNode:    int64(h.raftCluster.Self()),
+		Capacity:     int64(capacity),
+		CapacityUsed: int64(capacityUsed),
+	})
 }

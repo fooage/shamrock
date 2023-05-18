@@ -11,6 +11,7 @@ import (
 	rpc_api "github.com/fooage/shamrock/api/meta/rpc"
 	"github.com/fooage/shamrock/core/kvstore"
 	"github.com/fooage/shamrock/core/raft"
+	"github.com/fooage/shamrock/core/scheduler"
 	"github.com/fooage/shamrock/service"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.uber.org/zap"
@@ -54,19 +55,20 @@ func main() {
 		zap.Int("group", *group)),
 	)
 
-	// initialize the storage and consistency layers
+	// initialize the storage, consistency layers and scheduler
+	discovery := service.InitServiceDiscovery(logger, "consul", strings.Split(*discovery, ","))
 	kvStorage := kvstore.NewKVStoreServer(logger)
 	raftCluster := raft.NewRaftServer(logger, *self, *group, strings.Split(*peers, ","), *join, proposeCh, confChangeCh, kvStorage.SnapshotFetch)
+	blockScheduler := scheduler.NewScheduler(logger)
 	kvStorage.Connect(raftCluster)
 
 	// the key-value http handler will propose updates to raft
 	local, _ := url.Parse(fmt.Sprintf("http://%s", *local))
 	go http_api.ServeHttp(cancel, logger, *local, kvStorage, raftCluster)
-	go rpc_api.ServeRPC(cancel, logger, *local, kvStorage, raftCluster)
+	go rpc_api.ServeRPC(cancel, logger, *local, kvStorage, raftCluster, blockScheduler)
 
 	// register service to cluster service discovery
 	local, _ = url.Parse(strings.Split(*peers, ",")[*self-1])
-	discovery := service.InitServiceDiscovery(logger, "consul", strings.Split(*discovery, ","))
 	discovery.Register("shamrock-meta", *local)
 	defer discovery.Deregister("shamrock-meta")
 

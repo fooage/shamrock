@@ -13,7 +13,7 @@ import (
 // openWAL returns a WAL ready for reading.
 func (rf *raftServer) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 	if !wal.Exist(rf.walPath) {
-		if err := os.Mkdir(rf.walPath, 0750); err != nil {
+		if err := os.MkdirAll(rf.walPath, 0750); err != nil {
 			rf.logger.Panic("make WAL folder error", zap.String("path", rf.walPath), zap.Error(err))
 		}
 		// create a new ins first

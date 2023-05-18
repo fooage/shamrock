@@ -78,7 +78,7 @@ func (h *handler) ConfChangeRemoveNode(c *gin.Context) {
 
 func (h *handler) QueryObjectMeta(c *gin.Context) {
 	uniqueKey := c.Param("unique_key")
-	key := kvstore.GenerateObjectMetaKey(uniqueKey)
+	key := kvstore.GenerateObjectKey(uniqueKey)
 
 	if value, ok := h.kvStorage.Lookup(key); ok {
 		var data meta_service.ObjectMeta
@@ -96,7 +96,7 @@ func (h *handler) QueryObjectMeta(c *gin.Context) {
 
 func (h *handler) UpdateObjectMeta(c *gin.Context) {
 	uniqueKey := c.Param("unique_key")
-	key := kvstore.GenerateObjectMetaKey(uniqueKey)
+	key := kvstore.GenerateObjectKey(uniqueKey)
 	data := meta_service.ObjectMeta{}
 	err := c.BindJSON(&data)
 	if err != nil {
@@ -123,7 +123,7 @@ func (h *handler) UpdateObjectMeta(c *gin.Context) {
 
 func (h *handler) QueryChunkMeta(c *gin.Context) {
 	uniqueKey := c.Param("unique_key")
-	key := kvstore.GenerateChunkMetaKey(uniqueKey)
+	key := kvstore.GenerateChunkKey(uniqueKey)
 
 	if value, ok := h.kvStorage.Lookup(key); ok {
 		var data meta_service.ChunkMeta
@@ -141,7 +141,7 @@ func (h *handler) QueryChunkMeta(c *gin.Context) {
 
 func (h *handler) UpdateChunkMeta(c *gin.Context) {
 	uniqueKey := c.Param("unique_key")
-	key := kvstore.GenerateChunkMetaKey(uniqueKey)
+	key := kvstore.GenerateChunkKey(uniqueKey)
 	data := meta_service.ChunkMeta{}
 	err := c.BindJSON(&data)
 	if err != nil {

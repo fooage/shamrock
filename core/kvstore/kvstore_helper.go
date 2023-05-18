@@ -1,16 +1,22 @@
 package kvstore
 
-import "fmt"
+import (
+	"fmt"
 
-const (
-	ObjectMetaKeyTemplate string = "object-meta:%s"
-	ChunkMetaKeyTemplate  string = "chunk-meta:%s"
+	"github.com/fooage/shamrock/utils"
 )
 
-func GenerateObjectMetaKey(name string) string {
-	return fmt.Sprintf(ObjectMetaKeyTemplate, name)
+const (
+	objectUniqueKeyTemplate string = "object-%s-%d"
+	chunkUniqueKeyTemplate  string = "chunk-%s-%d"
+)
+
+var generator = utils.NewGenerator(0, 0)
+
+func GenerateObjectKey(name string) string {
+	return fmt.Sprintf(objectUniqueKeyTemplate, name, generator.NextVal())
 }
 
-func GenerateChunkMetaKey(hash string) string {
-	return fmt.Sprintf(ChunkMetaKeyTemplate, hash)
+func GenerateChunkKey(hash string) string {
+	return fmt.Sprintf(chunkUniqueKeyTemplate, hash, generator.NextVal())
 }

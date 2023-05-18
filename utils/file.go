@@ -5,7 +5,10 @@ import (
 	"io"
 	"math"
 	"os"
+	"syscall"
 )
+
+const DefaultBlockSize = 16384
 
 // PathExist determine whether a file or folder exists in the specified path.
 func PathExist(path string) bool {
@@ -30,11 +33,23 @@ func IsFile(path string) bool {
 	return !IsDir(path)
 }
 
+// DiskUsage Gets the disk usage, the first return parameter is the usage, and
+// the second return parameter is the total amount.
+func DiskUsage(path string) (uint64, uint64, error) {
+	fs := syscall.Statfs_t{}
+	err := syscall.Statfs(path, &fs)
+	if err != nil {
+		return 0, 0, err
+	}
+	used := fs.Blocks - fs.Bfree
+	return used * uint64(fs.Bsize), fs.Blocks * uint64(fs.Bsize), nil
+}
+
 // BufferReadFile is name implies, with a 2MB buffer read small file.
 func BufferReadFile(file *os.File) ([]byte, error) {
 	reader := bufio.NewReader(file)
 	var (
-		data = make([]byte, 0, 16384)
+		data = make([]byte, 0, DefaultBlockSize)
 		buf  = make([]byte, 2048)
 	)
 	for {

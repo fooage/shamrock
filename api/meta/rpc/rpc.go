@@ -7,6 +7,7 @@ import (
 
 	"github.com/fooage/shamrock/core/kvstore"
 	"github.com/fooage/shamrock/core/raft"
+	"github.com/fooage/shamrock/core/scheduler"
 	"github.com/fooage/shamrock/proto/proto_gen/meta_service"
 	"github.com/fooage/shamrock/utils"
 	"go.uber.org/zap"
@@ -15,7 +16,7 @@ import (
 
 var server = grpc.NewServer()
 
-func ServeRPC(cancelFunc context.CancelFunc, logger *zap.Logger, local url.URL, kvStorage kvstore.KVStorage, raftCluster raft.Cluster) {
+func ServeRPC(cancelFunc context.CancelFunc, logger *zap.Logger, local url.URL, kvStorage kvstore.KVStorage, raftCluster raft.Cluster, blockScheduler scheduler.Scheduler) {
 	listener, err := net.Listen("tcp", utils.AddressOffsetRPC(local))
 	if err != nil {
 		logger.Panic("grpc listener init failed", zap.Error(err))
@@ -28,5 +29,5 @@ func ServeRPC(cancelFunc context.CancelFunc, logger *zap.Logger, local url.URL, 
 	}()
 
 	// Register the relevant interface functions of the Block service.
-	meta_service.RegisterMetaServiceServer(server, generateHandler(logger, kvStorage, raftCluster))
+	meta_service.RegisterMetaServiceServer(server, generateHandler(logger, kvStorage, raftCluster, blockScheduler))
 }

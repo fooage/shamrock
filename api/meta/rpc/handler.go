@@ -7,28 +7,32 @@ import (
 
 	"github.com/fooage/shamrock/core/kvstore"
 	"github.com/fooage/shamrock/core/raft"
+	"github.com/fooage/shamrock/core/scheduler"
 	"github.com/fooage/shamrock/proto/proto_gen/meta_service"
+	"github.com/fooage/shamrock/utils"
 	"go.uber.org/zap"
 )
 
 type handler struct {
-	kvStorage   kvstore.KVStorage
-	raftCluster raft.Cluster
-	logger      *zap.Logger
+	kvStorage      kvstore.KVStorage
+	raftCluster    raft.Cluster
+	blockScheduler scheduler.Scheduler
+	logger         *zap.Logger
 	// implement abstract meta service method
 	meta_service.UnimplementedMetaServiceServer
 }
 
-func generateHandler(logger *zap.Logger, kvStorage kvstore.KVStorage, raftCluster raft.Cluster) *handler {
+func generateHandler(logger *zap.Logger, kvStorage kvstore.KVStorage, raftCluster raft.Cluster, blockScheduler scheduler.Scheduler) *handler {
 	return &handler{
-		kvStorage:   kvStorage,
-		raftCluster: raftCluster,
-		logger:      logger,
+		kvStorage:      kvStorage,
+		raftCluster:    raftCluster,
+		blockScheduler: blockScheduler,
+		logger:         logger,
 	}
 }
 
 func (h *handler) QueryObjectMeta(ctx context.Context, req *meta_service.QueryObjectMetaReq) (*meta_service.QueryObjectMetaResp, error) {
-	key := kvstore.GenerateObjectMetaKey(req.UniqueKey)
+	key := kvstore.GenerateObjectKey(req.UniqueKey)
 	value, ok := h.kvStorage.Lookup(key)
 	if ok {
 		meta := meta_service.ObjectMeta{}
@@ -45,7 +49,7 @@ func (h *handler) QueryObjectMeta(ctx context.Context, req *meta_service.QueryOb
 }
 
 func (h *handler) UpdateObjectStatus(ctx context.Context, req *meta_service.UpdateObjectStatusReq) (*meta_service.UpdateObjectStatusResp, error) {
-	key := kvstore.GenerateObjectMetaKey(req.UniqueKey)
+	key := kvstore.GenerateObjectKey(req.UniqueKey)
 	value, ok := h.kvStorage.Lookup(key)
 	if ok {
 		meta := meta_service.ObjectMeta{}
@@ -73,7 +77,7 @@ func (h *handler) QueryChunkMeta(ctx context.Context, req *meta_service.QueryChu
 
 	result := make(map[string]*meta_service.ChunkMeta, len(req.UniqueKeys))
 	for _, uniqueKey := range req.UniqueKeys {
-		key := kvstore.GenerateChunkMetaKey(uniqueKey)
+		key := kvstore.GenerateChunkKey(uniqueKey)
 		value, ok := h.kvStorage.Lookup(key)
 		if !ok {
 			h.logger.Info("query chunk not found", zap.String("key", uniqueKey))
@@ -95,7 +99,7 @@ func (h *handler) UpdateChunkStatus(ctx context.Context, req *meta_service.Updat
 	}
 
 	for _, uniqueKey := range req.UniqueKeys {
-		key := kvstore.GenerateChunkMetaKey(uniqueKey)
+		key := kvstore.GenerateChunkKey(uniqueKey)
 		data, ok := h.kvStorage.Lookup(key)
 		if !ok {
 			h.logger.Info("query chunk not found", zap.String("key", uniqueKey))
@@ -119,5 +123,43 @@ func (h *handler) UpdateChunkStatus(ctx context.Context, req *meta_service.Updat
 }
 
 func (h *handler) RegisterObject(ctx context.Context, req *meta_service.RegisterObjectReq) (*meta_service.RegisterObjectResp, error) {
-	panic("implement me")
+	object := meta_service.ObjectMeta{
+		UniqueKey: kvstore.GenerateObjectKey(req.Name),
+		Status:    meta_service.EntryStatus_Registered,
+		Size:      req.Size,
+		ChunkList: make([]string, 0, len(req.HashList)),
+	}
+
+	// Generate meta information for each chunk and dispatch storage group.
+	// Finally complete the registration and return of object meta information.
+	for index, hash := range req.HashList {
+		storeGroup, err := h.blockScheduler.Dispatch(utils.DefaultBlockSize)
+		if err != nil {
+			h.logger.Error("scheduler dispatch chunk error", zap.Error(err), zap.String("file", req.Name))
+			return nil, err
+		}
+		chunk := meta_service.ChunkMeta{
+			UniqueKey:  kvstore.GenerateChunkKey(hash),
+			Status:     meta_service.EntryStatus_Registered,
+			Parent:     object.UniqueKey,
+			Index:      int64(index),
+			StoreGroup: storeGroup,
+		}
+		chunkJson, _ := json.Marshal(chunk)
+		err = h.kvStorage.Propose(chunk.UniqueKey, string(chunkJson))
+		if err != nil {
+			h.logger.Error("register chunk meta error", zap.Error(err), zap.String("key", chunk.UniqueKey))
+			return nil, err
+		}
+		// chunk unique key is added to the object meta
+		object.ChunkList = append(object.ChunkList, chunk.UniqueKey)
+	}
+
+	objectJson, _ := json.Marshal(object)
+	err := h.kvStorage.Propose(object.UniqueKey, string(objectJson))
+	if err != nil {
+		h.logger.Error("register object meta error", zap.Error(err))
+		return nil, err
+	}
+	return &meta_service.RegisterObjectResp{Meta: &object}, nil
 }

@@ -40,3 +40,13 @@ message DeleteBlockReq {
 }
 
 message DeleteBlockResp {}
+
+// The block storage service needs to report the service health status to the
+// meta information service for scheduling.
+message HealthReport {
+  string address = 1;
+  int64 store_group = 2;
+  int64 store_node = 3;
+  int64 capacity = 4;
+  int64 capacity_used = 5;
+}
