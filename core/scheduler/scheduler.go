@@ -51,8 +51,6 @@ func NewScheduler(logger *zap.Logger) Scheduler {
 // pollingHealthStatus according to the current list of block storage
 // instances, the health status of all nodes is requested.
 func (ds *storageScheduler) pollingHealthStatus() {
-	ds.mutex.Lock()
-	defer ds.mutex.Unlock()
 	instances := service.DiscoveryClient.Instances("shamrock-block")
 	healthStatus := make(map[int64]map[int64]*block_service.HealthReport)
 
@@ -63,17 +61,21 @@ func (ds *storageScheduler) pollingHealthStatus() {
 			defer ds.requestGroup.Done()
 			report, _ := ds.requestHealthStatus(url)
 			if report != nil {
+				ds.mutex.Lock()
 				if _, ok := healthStatus[report.StoreGroup]; !ok {
 					healthStatus[report.StoreGroup] = make(map[int64]*block_service.HealthReport)
 				}
 				healthStatus[report.StoreGroup][report.StoreNode] = report
+				ds.mutex.Unlock()
 			}
 		}(address)
 	}
 	ds.requestGroup.Wait()
 
 	// replace the old health status map with new one
+	ds.mutex.Lock()
 	ds.healthStatus = healthStatus
+	ds.mutex.Unlock()
 }
 
 func (ds *storageScheduler) requestHealthStatus(url url.URL) (*block_service.HealthReport, error) {
