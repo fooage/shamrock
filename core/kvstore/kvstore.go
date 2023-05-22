@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 type KVStorage interface {
 	Lookup(key string) (string, bool)
+	Match(prefix string) []string
 	Propose(key string, value string) error
 	SnapshotFetch() ([]byte, error)
 	Connect(cluster raft.Cluster)
@@ -52,6 +54,20 @@ func (kv *kvstoreServer) Lookup(key string) (string, bool) {
 	value, ok := kv.kvstore[key]
 	kv.mutex.RUnlock()
 	return value, ok
+}
+
+func (kv *kvstoreServer) Match(prefix string) []string {
+	// TODO: At present, the matching efficiency is very low, and the use of
+	// Trie tree is considered to achieve it in the later version.
+	matched := make([]string, 0)
+	kv.mutex.RLock()
+	for key := range kv.kvstore {
+		if strings.HasPrefix(key, prefix) {
+			matched = append(matched, key)
+		}
+	}
+	kv.mutex.RUnlock()
+	return matched
 }
 
 func (kv *kvstoreServer) Propose(key string, value string) error {

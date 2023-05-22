@@ -242,7 +242,7 @@ func (f *filestoreServer) recoverFromSnapshot() error {
 }
 
 func (f *filestoreServer) synchronizedLeader(leader url.URL, filestore map[string]*os.File) error {
-	connect, err := grpc.Dial(utils.AddressOffsetRPC(leader))
+	connect, err := grpc.Dial(utils.AddressOffsetRPC(leader), grpc.WithInsecure())
 	if err != nil {
 		f.logger.Error("grpc dial to master node error", zap.Error(err))
 		return err

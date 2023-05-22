@@ -7,6 +7,7 @@ option go_package = "./meta_service";
 service MetaService {
   // Query or update meta information about storage objects.
   rpc QueryObjectMeta(QueryObjectMetaReq) returns (QueryObjectMetaResp) {}
+  rpc QueryObjectKeys(QueryObjectKeysReq) returns (QueryObjectKeysResp) {}
   rpc UpdateObjectStatus(UpdateObjectStatusReq) returns (UpdateObjectStatusResp) {}
   // Query or update chunk meta and routing information.
   rpc QueryChunkMeta(QueryChunkMetaReq) returns (QueryChunkMetaResp) {}
@@ -38,6 +39,17 @@ message QueryObjectMetaReq {
 
 message QueryObjectMetaResp {
   ObjectMeta meta = 1;
+}
+
+message QueryObjectKeysReq {
+  string prefix = 1;
+  int64 page = 2;
+  int64 page_size = 3;
+}
+
+message QueryObjectKeysResp {
+  repeated string unique_keys = 1;
+  int64 total = 2;
 }
 
 message UpdateObjectStatusReq {

@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type MetaServiceClient interface {
 	// Query or update meta information about storage objects.
 	QueryObjectMeta(ctx context.Context, in *QueryObjectMetaReq, opts ...grpc.CallOption) (*QueryObjectMetaResp, error)
+	QueryObjectKeys(ctx context.Context, in *QueryObjectKeysReq, opts ...grpc.CallOption) (*QueryObjectKeysResp, error)
 	UpdateObjectStatus(ctx context.Context, in *UpdateObjectStatusReq, opts ...grpc.CallOption) (*UpdateObjectStatusResp, error)
 	// Query or update chunk meta and routing information.
 	QueryChunkMeta(ctx context.Context, in *QueryChunkMetaReq, opts ...grpc.CallOption) (*QueryChunkMetaResp, error)
@@ -45,6 +46,15 @@ func NewMetaServiceClient(cc grpc.ClientConnInterface) MetaServiceClient {
 func (c *metaServiceClient) QueryObjectMeta(ctx context.Context, in *QueryObjectMetaReq, opts ...grpc.CallOption) (*QueryObjectMetaResp, error) {
 	out := new(QueryObjectMetaResp)
 	err := c.cc.Invoke(ctx, "/meta_service.MetaService/QueryObjectMeta", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *metaServiceClient) QueryObjectKeys(ctx context.Context, in *QueryObjectKeysReq, opts ...grpc.CallOption) (*QueryObjectKeysResp, error) {
+	out := new(QueryObjectKeysResp)
+	err := c.cc.Invoke(ctx, "/meta_service.MetaService/QueryObjectKeys", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +112,7 @@ func (c *metaServiceClient) QueryStorageAddress(ctx context.Context, in *QuerySt
 type MetaServiceServer interface {
 	// Query or update meta information about storage objects.
 	QueryObjectMeta(context.Context, *QueryObjectMetaReq) (*QueryObjectMetaResp, error)
+	QueryObjectKeys(context.Context, *QueryObjectKeysReq) (*QueryObjectKeysResp, error)
 	UpdateObjectStatus(context.Context, *UpdateObjectStatusReq) (*UpdateObjectStatusResp, error)
 	// Query or update chunk meta and routing information.
 	QueryChunkMeta(context.Context, *QueryChunkMetaReq) (*QueryChunkMetaResp, error)
@@ -119,6 +130,9 @@ type UnimplementedMetaServiceServer struct {
 
 func (UnimplementedMetaServiceServer) QueryObjectMeta(context.Context, *QueryObjectMetaReq) (*QueryObjectMetaResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryObjectMeta not implemented")
+}
+func (UnimplementedMetaServiceServer) QueryObjectKeys(context.Context, *QueryObjectKeysReq) (*QueryObjectKeysResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method QueryObjectKeys not implemented")
 }
 func (UnimplementedMetaServiceServer) UpdateObjectStatus(context.Context, *UpdateObjectStatusReq) (*UpdateObjectStatusResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateObjectStatus not implemented")
@@ -162,6 +176,24 @@ func _MetaService_QueryObjectMeta_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MetaServiceServer).QueryObjectMeta(ctx, req.(*QueryObjectMetaReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MetaService_QueryObjectKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryObjectKeysReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetaServiceServer).QueryObjectKeys(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/meta_service.MetaService/QueryObjectKeys",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetaServiceServer).QueryObjectKeys(ctx, req.(*QueryObjectKeysReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -266,6 +298,10 @@ var MetaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "QueryObjectMeta",
 			Handler:    _MetaService_QueryObjectMeta_Handler,
+		},
+		{
+			MethodName: "QueryObjectKeys",
+			Handler:    _MetaService_QueryObjectKeys_Handler,
 		},
 		{
 			MethodName: "UpdateObjectStatus",

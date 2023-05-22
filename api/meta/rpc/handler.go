@@ -47,6 +47,20 @@ func (h *handler) QueryObjectMeta(ctx context.Context, req *meta_service.QueryOb
 	return nil, errors.New("query object not found")
 }
 
+func (h *handler) QueryObjectKeys(ctx context.Context, req *meta_service.QueryObjectKeysReq) (*meta_service.QueryObjectKeysResp, error) {
+	begin := int(req.Page * req.PageSize)
+	end := int((req.Page + 1) * req.PageSize)
+	matched := h.kvStorage.Match(req.Prefix)
+	if begin < 0 || begin > len(matched) || begin > end || end > len(matched) {
+		h.logger.Error("page params error", zap.Int64("page", req.Page), zap.Int64("page_size", req.PageSize))
+		return nil, errors.New("params invalid")
+	}
+	return &meta_service.QueryObjectKeysResp{
+		UniqueKeys: matched[begin:end],
+		Total:      int64(len(matched)),
+	}, nil
+}
+
 func (h *handler) UpdateObjectStatus(ctx context.Context, req *meta_service.UpdateObjectStatusReq) (*meta_service.UpdateObjectStatusResp, error) {
 	value, ok := h.kvStorage.Lookup(req.UniqueKey)
 	if ok {
