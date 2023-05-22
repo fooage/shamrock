@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 
 	"github.com/fooage/shamrock/core/filestore"
 	"github.com/fooage/shamrock/core/kvstore"
@@ -51,7 +52,12 @@ func (h *handler) QueryObjectKeys(ctx context.Context, req *meta_service.QueryOb
 	begin := int(req.Page * req.PageSize)
 	end := int((req.Page + 1) * req.PageSize)
 	matched := h.kvStorage.Match(req.Prefix)
-	if begin < 0 || begin > len(matched) || begin > end || end > len(matched) {
+	if len(matched) == 0 {
+		h.logger.Error("prefix not match object key", zap.String("prefix", req.Prefix))
+		return nil, errors.New("object keys not found")
+	}
+	end = int(math.Min(float64(end), float64(len(matched))))
+	if begin < 0 || begin > len(matched) || begin >= end {
 		h.logger.Error("page params error", zap.Int64("page", req.Page), zap.Int64("page_size", req.PageSize))
 		return nil, errors.New("params invalid")
 	}

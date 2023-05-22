@@ -28,7 +28,7 @@ type FileStorage interface {
 	Connect(cluster raft.Cluster)
 }
 
-const DefaultBlockSize = 16384
+const DefaultBlockSize = 16 * 1024 * 1024
 
 // The file store relies heavily on disk for storage and its role is to store
 // chunks of object, with the possibility of adding an in-memory cache in the future.
@@ -242,7 +242,7 @@ func (f *filestoreServer) recoverFromSnapshot() error {
 }
 
 func (f *filestoreServer) synchronizedLeader(leader url.URL, filestore map[string]*os.File) error {
-	connect, err := grpc.Dial(utils.AddressOffsetRPC(leader), grpc.WithInsecure())
+	connect, err := grpc.Dial(utils.AddressOffsetRPC(leader), grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(2*DefaultBlockSize)))
 	if err != nil {
 		f.logger.Error("grpc dial to master node error", zap.Error(err))
 		return err

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var server = grpc.NewServer()
+var server = grpc.NewServer(grpc.MaxRecvMsgSize(filestore.DefaultBlockSize * 2))
 
 func ServeRPC(cancelFunc context.CancelFunc, logger *zap.Logger, local url.URL, fileStorage filestore.FileStorage, raftCluster raft.Cluster) {
 	listener, err := net.Listen("tcp", utils.AddressOffsetRPC(local))
