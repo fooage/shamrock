@@ -163,10 +163,9 @@ func (f *filestoreServer) readCommits() {
 						continue
 					}
 				}
+				// Notify Raft that the message has been applied by closing the channel.
+				close(commit.ApplyDoneCh)
 			}
-
-			// Notify Raft that the message has been applied by closing the channel.
-			close(commit.ApplyDoneCh)
 		}
 	}
 }

@@ -397,7 +397,7 @@ func (rf *raftServer) processConfChange(confChange raftpb.ConfChange) bool {
 	case raftpb.ConfChangeRemoveNode:
 		if confChange.NodeID == uint64(rf.cluster.self) {
 			rf.logger.Info("remove node from cluster, shutting down")
-			return false
+			return true
 		}
 		rf.cluster.leave(types.ID(confChange.NodeID))
 		rf.transport.RemovePeer(types.ID(confChange.NodeID))

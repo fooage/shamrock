@@ -33,7 +33,8 @@ func GenerateChunkPrefix(hash string) string {
 }
 
 func ParseObjectName(key string) string {
-	return strings.Split(key, "-")[1]
+	keySplited := strings.Split(key, "-")
+	return strings.Join(keySplited[1:len(keySplited)-1], "-")
 }
 
 func ParseChunkHash(key string) string {
