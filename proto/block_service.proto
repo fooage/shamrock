@@ -1,11 +1,10 @@
 syntax = "proto3";
 
-package block_service;
+package block;
 
-option go_package = "./block_service";
-
-service BlockService {
-  // To obtain object block according to unique key, can set whether to pull from the Master node.
+service Block {
+  // To obtain object block according to unique key, can set whether to pull
+  // from the Master node for disperse pressure.
   rpc FetchBlock(FetchBlockReq) returns (FetchBlockResp) {}
   // Store the object block to the Block service group.
   rpc StoreBlock(StoreBlockReq) returns (StoreBlockResp) {}
@@ -14,9 +13,9 @@ service BlockService {
 }
 
 message BlockEntry {
-  string unique_key = 1; // block entry's unique key
-  string hash = 2; // hash of this block for data validation
-  bytes binary = 3; // the binary data of the block
+  string unique_key = 1;  // block entry's unique key
+  string hash = 2;        // hash of this block for data validation
+  bytes binary = 3;       // the binary data of the block
 }
 
 message FetchBlockReq {
@@ -35,6 +34,7 @@ message StoreBlockReq {
 
 message StoreBlockResp {}
 
+// TODO: Delete file in storage feature have not complete.
 message DeleteBlockReq {
   string unique_key = 1;
 }

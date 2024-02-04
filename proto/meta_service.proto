@@ -1,16 +1,17 @@
 syntax = "proto3";
 
-package meta_service;
+package meta;
 
-option go_package = "./meta_service";
-
-service MetaService {
-  // Query or update meta information about storage objects.
+service Meta {
+  // Query meta information about storage objects.
   rpc QueryObjectMeta(QueryObjectMetaReq) returns (QueryObjectMetaResp) {}
+  // Query key information about storage objects.
   rpc QueryObjectKeys(QueryObjectKeysReq) returns (QueryObjectKeysResp) {}
+  // Update object status when uploading.
   rpc UpdateObjectStatus(UpdateObjectStatusReq) returns (UpdateObjectStatusResp) {}
-  // Query or update chunk meta and routing information.
+  // Query chunk meta and routing information.
   rpc QueryChunkMeta(QueryChunkMetaReq) returns (QueryChunkMetaResp) {}
+  // Update chunk status when uploading.
   rpc UpdateChunkStatus(UpdateChunkStatusReq) returns (UpdateChunkStatusResp) {}
   // The registration object completes the route table construction.
   rpc RegisterObject(RegisterObjectReq) returns (RegisterObjectResp) {}
@@ -19,18 +20,18 @@ service MetaService {
 }
 
 message ObjectMeta {
-  string unique_key = 1; // the unique key of object
-  EntryStatus status = 2; // the status of object
-  int64 size = 3; // byte unit size of the object
+  string unique_key = 1;          // the unique key of object
+  EntryStatus status = 2;         // the status of object
+  int64 size = 3;                 // byte unit size of the object
   repeated string chunk_list = 4; // chunk list of the object to which it belongs
 }
 
 message ChunkMeta {
-  string unique_key = 1; // the unique key of chunk
+  string unique_key = 1;  // the unique key of chunk
   EntryStatus status = 2; // the status of chunk
-  string parent = 3; // the object unique key to which the chunk belongs
-  int64 index = 4; // chunk's order in the whole object
-  int64 store_group = 5; // block storage Raft group where chunk are stored
+  string parent = 3;      // the object unique key to which the chunk belongs
+  int64 index = 4;        // chunk's order in the whole object
+  int64 store_group = 5;  // block storage Raft group where chunk are stored
 }
 
 message QueryObjectMetaReq {
@@ -59,8 +60,8 @@ message UpdateObjectStatusReq {
 
 message UpdateObjectStatusResp {}
 
-// NOTE: The naming here is different from the block storage service because it needs
-// to understand the concept of object chunk.
+// NOTE: The naming here is different from the block storage service because it 
+// needs to understand the concept of object chunk.
 
 message QueryChunkMetaReq {
   repeated string unique_keys = 1;

@@ -1,0 +1,22 @@
+[package]
+name = "shamrock"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "block-service"
+path = "src/service/block/main.rs"
+
+[[bin]]
+name = "meta-service"
+path = "src/service/meta/main.rs"
+
+[dependencies]
+tonic = "0.10"
+prost = "0.12"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+
+[build-dependencies]
+tonic-build = "0.10"
